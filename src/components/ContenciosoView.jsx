@@ -10,10 +10,11 @@ import { useToast } from '@/components/ui/use-toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ProcessoAdmForm from '@/components/ProcessoAdmForm';
 import ProcessoJudicialForm from '@/components/ProcessoJudicialForm';
+import AndamentosModal from '@/components/AndamentosModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Gavel, Scale, PlusCircle, Search, Edit2, Trash2, Loader2,
-  Banknote, ShieldCheck, Clock, X, Download,
+  Banknote, ShieldCheck, Clock, X, Download, History,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
 import { exportarProcessosAdministrativos, exportarProcessosJudiciais } from '@/lib/fiscalExport';
@@ -83,6 +84,7 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
   const [formJudAberto, setFormJudAberto] = useState(false);
   const [judEdicao, setJudEdicao] = useState(null);
   const [aExcluir, setAExcluir] = useState(null); // { tipo: 'adm'|'jud', registro }
+  const [andamentosDe, setAndamentosDe] = useState(null); // { tipo, registro }
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
@@ -345,7 +347,7 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
                           <th className="text-right py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Autuado</th>
                           <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[160px]">Situação</th>
                           <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[140px]">Próximo prazo</th>
-                          <th className="text-center py-3 px-3 font-semibold text-slate-600 text-sm min-w-[90px]">Ações</th>
+                          <th className="text-center py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -400,6 +402,11 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
                                 </td>
                                 <td className="py-3 px-3">
                                   <div className="flex items-center justify-center gap-1">
+                                    <Button variant="ghost" size="sm"
+                                      onClick={() => setAndamentosDe({ tipo: 'adm', registro: p })}
+                                      title="Andamentos e prazos">
+                                      <History className="h-4 w-4 text-slate-500" />
+                                    </Button>
                                     <Button variant="ghost" size="sm"
                                       onClick={() => { setAdmEdicao(p); setFormAdmAberto(true); }} title="Editar">
                                       <Edit2 className="h-4 w-4 text-slate-500" />
@@ -500,7 +507,7 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
                           <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[180px]">Situação</th>
                           <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[150px]">Compensação</th>
                           <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Habilitação RFB</th>
-                          <th className="text-center py-3 px-3 font-semibold text-slate-600 text-sm min-w-[90px]">Ações</th>
+                          <th className="text-center py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -564,6 +571,11 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
                                 <td className="py-3 px-3">
                                   <div className="flex items-center justify-center gap-1">
                                     <Button variant="ghost" size="sm"
+                                      onClick={() => setAndamentosDe({ tipo: 'jud', registro: p })}
+                                      title="Andamentos e prazos">
+                                      <History className="h-4 w-4 text-slate-500" />
+                                    </Button>
+                                    <Button variant="ghost" size="sm"
                                       onClick={() => { setJudEdicao(p); setFormJudAberto(true); }} title="Editar">
                                       <Edit2 className="h-4 w-4 text-slate-500" />
                                     </Button>
@@ -609,6 +621,23 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
         creditos={creditos}
         responsaveis={responsaveis}
         salvando={salvando}
+      />
+
+      <AndamentosModal
+        isOpen={!!andamentosDe}
+        onClose={() => setAndamentosDe(null)}
+        entidadeTipo={andamentosDe?.tipo === 'adm' ? 'processo_administrativo' : 'processo_judicial'}
+        entidadeId={andamentosDe?.registro?.id}
+        projetoId={andamentosDe?.registro?.projeto_id}
+        titulo={andamentosDe?.registro
+          ? (andamentosDe.tipo === 'adm'
+              ? `${andamentosDe.registro.orgao_atual} — ${andamentosDe.registro.numero_processo}`
+              : `${andamentosDe.registro.tipo_acao} — ${andamentosDe.registro.numero_cnj}`)
+          : null}
+        subtitulo={andamentosDe?.registro?.contribuinte?.razao_social}
+        usuario={usuario}
+        userProfile={userProfile}
+        tipoPadrao={andamentosDe?.tipo === 'adm' ? 'Intimação' : 'Juntada'}
       />
 
       <ConfirmDialog

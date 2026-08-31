@@ -8,10 +8,11 @@ import { KpiCard } from '@/components/ui/kpi-card';
 import { useToast } from '@/components/ui/use-toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import HabilitacaoForm from '@/components/HabilitacaoForm';
+import AndamentosModal from '@/components/AndamentosModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileCheck2, PlusCircle, Search, Edit2, Trash2, Loader2,
-  Banknote, CheckCircle2, AlertTriangle, X, Clock, Download,
+  Banknote, CheckCircle2, AlertTriangle, X, Clock, Download, History,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
 import { exportarHabilitacoes } from '@/lib/fiscalExport';
@@ -49,6 +50,7 @@ const HabilitacoesView = ({ usuario, userProfile, responsaveis = [], onRefresh }
   const [formAberto, setFormAberto] = useState(false);
   const [emEdicao, setEmEdicao] = useState(null);
   const [aExcluir, setAExcluir] = useState(null);
+  const [andamentosDe, setAndamentosDe] = useState(null);
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
@@ -245,7 +247,7 @@ const HabilitacoesView = ({ usuario, userProfile, responsaveis = [], onRefresh }
                       <th className="text-right py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Autorizado</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[150px]">Situação</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Prazo resposta</th>
-                      <th className="text-center py-3 px-3 font-semibold text-slate-600 text-sm min-w-[90px]">Ações</th>
+                      <th className="text-center py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -313,6 +315,10 @@ const HabilitacoesView = ({ usuario, userProfile, responsaveis = [], onRefresh }
                             <td className="py-3 px-3">
                               <div className="flex items-center justify-center gap-1">
                                 <Button variant="ghost" size="sm"
+                                  onClick={() => setAndamentosDe(h)} title="Andamentos e prazos">
+                                  <History className="h-4 w-4 text-slate-500" />
+                                </Button>
+                                <Button variant="ghost" size="sm"
                                   onClick={() => { setEmEdicao(h); setFormAberto(true); }} title="Editar">
                                   <Edit2 className="h-4 w-4 text-slate-500" />
                                 </Button>
@@ -341,6 +347,19 @@ const HabilitacoesView = ({ usuario, userProfile, responsaveis = [], onRefresh }
         creditos={creditos}
         responsaveis={responsaveis}
         salvando={salvando}
+      />
+
+      <AndamentosModal
+        isOpen={!!andamentosDe}
+        onClose={() => setAndamentosDe(null)}
+        entidadeTipo="habilitacao"
+        entidadeId={andamentosDe?.id}
+        projetoId={andamentosDe?.projeto_id}
+        titulo={andamentosDe ? `${andamentosDe.regime} — ${andamentosDe.numero_protocolo || 'sem protocolo'}` : null}
+        subtitulo={andamentosDe?.contribuinte?.razao_social}
+        usuario={usuario}
+        userProfile={userProfile}
+        tipoPadrao="Exigência"
       />
 
       <ConfirmDialog

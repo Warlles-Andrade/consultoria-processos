@@ -8,10 +8,11 @@ import { KpiCard } from '@/components/ui/kpi-card';
 import { useToast } from '@/components/ui/use-toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import PerdcompForm from '@/components/PerdcompForm';
+import AndamentosModal from '@/components/AndamentosModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Receipt, PlusCircle, Search, Edit2, Trash2, Loader2,
-  Banknote, ArrowLeftRight, Hourglass, X, Download,
+  Banknote, ArrowLeftRight, Hourglass, X, Download, History,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
 import { exportarPerdcomps } from '@/lib/fiscalExport';
@@ -54,6 +55,7 @@ const PerdcompsView = ({ usuario, userProfile, responsaveis = [], onRefresh }) =
   const [emEdicao, setEmEdicao] = useState(null);
   const [debitosEdicao, setDebitosEdicao] = useState([]);
   const [aExcluir, setAExcluir] = useState(null);
+  const [andamentosDe, setAndamentosDe] = useState(null);
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
@@ -287,7 +289,7 @@ const PerdcompsView = ({ usuario, userProfile, responsaveis = [], onRefresh }) =
                       <th className="text-right py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Compensado</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[160px]">Situação</th>
                       <th className="text-left py-3 px-3 font-semibold text-slate-600 text-sm min-w-[150px]">Homologação tácita</th>
-                      <th className="text-center py-3 px-3 font-semibold text-slate-600 text-sm min-w-[90px]">Ações</th>
+                      <th className="text-center py-3 px-3 font-semibold text-slate-600 text-sm min-w-[130px]">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -344,6 +346,10 @@ const PerdcompsView = ({ usuario, userProfile, responsaveis = [], onRefresh }) =
                             </td>
                             <td className="py-3 px-3">
                               <div className="flex items-center justify-center gap-1">
+                                <Button variant="ghost" size="sm"
+                                  onClick={() => setAndamentosDe(p)} title="Andamentos e prazos">
+                                  <History className="h-4 w-4 text-slate-500" />
+                                </Button>
                                 <Button variant="ghost" size="sm" onClick={() => abrirEdicao(p)} title="Editar">
                                   <Edit2 className="h-4 w-4 text-slate-500" />
                                 </Button>
@@ -373,6 +379,19 @@ const PerdcompsView = ({ usuario, userProfile, responsaveis = [], onRefresh }) =
         creditos={creditos}
         responsaveis={responsaveis}
         salvando={salvando}
+      />
+
+      <AndamentosModal
+        isOpen={!!andamentosDe}
+        onClose={() => setAndamentosDe(null)}
+        entidadeTipo="perdcomp"
+        entidadeId={andamentosDe?.id}
+        projetoId={andamentosDe?.projeto_id}
+        titulo={andamentosDe ? `${andamentosDe.tipo} — ${andamentosDe.numero}` : null}
+        subtitulo={andamentosDe?.contribuinte?.razao_social}
+        usuario={usuario}
+        userProfile={userProfile}
+        tipoPadrao="Intimação"
       />
 
       <ConfirmDialog

@@ -10,18 +10,16 @@ import { CurrencyInput } from '@/components/ui/currency-input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import AndamentosPanel from '@/components/AndamentosPanel';
 import { motion } from 'framer-motion';
 import {
   Landmark, Plus, Trash2, Loader2, TrendingUp, TrendingDown,
-  Wallet, AlertTriangle, Clock, CheckCircle2,
+  Wallet, AlertTriangle,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
+import { listarMovimentos, criarMovimento, excluirMovimento } from '@/lib/fiscalApi';
 import {
-  listarMovimentos, criarMovimento, excluirMovimento,
-  listarAndamentos, criarAndamento, marcarAndamentoCumprido, excluirAndamento,
-} from '@/lib/fiscalApi';
-import {
-  tipoMovimentoOptions, naturezaPorTipoMovimento, tipoAndamentoOptions,
+  tipoMovimentoOptions, naturezaPorTipoMovimento,
   getSituacaoColor, getPrazoSeveridade, prazoSeveridadeConfig,
   formatMoeda, formatData, formatCompetencia, formatCNPJ,
 } from '@/data/fiscalDomain';
@@ -37,13 +35,6 @@ const movimentoInicial = () => ({
   observacoes: '',
 });
 
-const andamentoInicial = () => ({
-  tipo: 'Protocolo',
-  descricao: '',
-  data_andamento: hoje(),
-  prazo_fatal: '',
-});
-
 const Campo = ({ label, children }) => (
   <div>
     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
@@ -55,27 +46,21 @@ const CreditoDetailModal = ({ isOpen, onClose, credito, usuario, userProfile, on
   const { toast } = useToast();
 
   const [movimentos, setMovimentos] = useState([]);
-  const [andamentos, setAndamentos] = useState([]);
+  const [totalAndamentos, setTotalAndamentos] = useState(0);
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
   const [formMov, setFormMov] = useState(movimentoInicial());
-  const [formAnd, setFormAnd] = useState(andamentoInicial());
   const [mostrarFormMov, setMostrarFormMov] = useState(false);
-  const [mostrarFormAnd, setMostrarFormAnd] = useState(false);
 
-  const [confirm, setConfirm] = useState(null); // { tipo: 'mov'|'and', id, texto }
+  const [confirm, setConfirm] = useState(null); // { id, texto }
 
   const carregar = useCallback(async () => {
     if (!credito?.id) return;
     setCarregando(true);
     try {
-      const [movs, ands] = await Promise.all([
-        listarMovimentos(credito.id),
-        listarAndamentos('credito', credito.id),
-      ]);
+      const movs = await listarMovimentos(credito.id);
       setMovimentos(movs || []);
-      setAndamentos(ands || []);
     } catch (error) {
       toast({ title: 'Erro ao carregar o crédito', description: getPublicErrorMessage(error), variant: 'destructive' });
     } finally {
@@ -87,9 +72,7 @@ const CreditoDetailModal = ({ isOpen, onClose, credito, usuario, userProfile, on
     if (isOpen) {
       carregar();
       setMostrarFormMov(false);
-      setMostrarFormAnd(false);
       setFormMov(movimentoInicial());
-      setFormAnd(andamentoInicial());
     }
   }, [isOpen, carregar]);
 
@@ -139,59 +122,17 @@ const CreditoDetailModal = ({ isOpen, onClose, credito, usuario, userProfile, on
     }
   };
 
-  const lancarAndamento = async () => {
-    if (!formAnd.descricao?.trim()) {
-      toast({ title: 'Descreva o andamento', variant: 'destructive' });
-      return;
-    }
-    setSalvando(true);
-    try {
-      await criarAndamento(
-        {
-          entidade_tipo: 'credito',
-          entidade_id: credito.id,
-          projeto_id: credito.projeto_id,
-          tipo: formAnd.tipo,
-          descricao: formAnd.descricao.trim(),
-          data_andamento: formAnd.data_andamento || hoje(),
-          prazo_fatal: formAnd.prazo_fatal || null,
-          responsavel_nome: userProfile?.nome || null,
-        },
-        usuario,
-        userProfile
-      );
-      toast({ title: 'Andamento registrado', className: 'bg-green-500 text-white' });
-      setFormAnd(andamentoInicial());
-      setMostrarFormAnd(false);
-      await carregar();
-    } catch (error) {
-      toast({ title: 'Erro ao registrar andamento', description: getPublicErrorMessage(error), variant: 'destructive' });
-    } finally {
-      setSalvando(false);
-    }
-  };
-
   const executarExclusao = async () => {
     if (!confirm) return;
     try {
-      if (confirm.tipo === 'mov') await excluirMovimento(confirm.id);
-      else await excluirAndamento(confirm.id);
-      toast({ title: 'Registro excluído', className: 'bg-green-500 text-white' });
+      await excluirMovimento(confirm.id);
+      toast({ title: 'Movimento excluído', className: 'bg-green-500 text-white' });
       await carregar();
       onChanged?.();
     } catch (error) {
       toast({ title: 'Erro ao excluir', description: getPublicErrorMessage(error), variant: 'destructive' });
     } finally {
       setConfirm(null);
-    }
-  };
-
-  const alternarCumprido = async (andamento) => {
-    try {
-      await marcarAndamentoCumprido(andamento.id, !andamento.cumprido);
-      await carregar();
-    } catch (error) {
-      toast({ title: 'Erro ao atualizar', description: getPublicErrorMessage(error), variant: 'destructive' });
     }
   };
 
@@ -257,7 +198,7 @@ const CreditoDetailModal = ({ isOpen, onClose, credito, usuario, userProfile, on
             <TabsList>
               <TabsTrigger value="dados">Dados</TabsTrigger>
               <TabsTrigger value="razao">Razão ({movimentos.length})</TabsTrigger>
-              <TabsTrigger value="andamentos">Andamentos ({andamentos.length})</TabsTrigger>
+              <TabsTrigger value="andamentos">Andamentos ({totalAndamentos})</TabsTrigger>
             </TabsList>
 
             {/* ---------------- Dados ---------------- */}
@@ -419,104 +360,17 @@ const CreditoDetailModal = ({ isOpen, onClose, credito, usuario, userProfile, on
             </TabsContent>
 
             {/* ---------------- Andamentos ---------------- */}
-            <TabsContent value="andamentos" className="pt-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-slate-500">Movimentações e prazos deste crédito.</p>
-                <Button size="sm" onClick={() => setMostrarFormAnd((v) => !v)}
-                  className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white">
-                  <Plus className="h-4 w-4 mr-1" /> Novo andamento
-                </Button>
-              </div>
-
-              {mostrarFormAnd && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                  className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3 overflow-hidden">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="space-y-1">
-                      <Label>Tipo</Label>
-                      <Select value={formAnd.tipo} onValueChange={(v) => setFormAnd((f) => ({ ...f, tipo: v }))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent className="max-h-72">
-                          {tipoAndamentoOptions.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Data</Label>
-                      <Input type="date" value={formAnd.data_andamento}
-                        onChange={(e) => setFormAnd((f) => ({ ...f, data_andamento: e.target.value }))} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Prazo fatal (opcional)</Label>
-                      <Input type="date" value={formAnd.prazo_fatal}
-                        onChange={(e) => setFormAnd((f) => ({ ...f, prazo_fatal: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label>Descrição</Label>
-                    <Textarea rows={2} value={formAnd.descricao}
-                      onChange={(e) => setFormAnd((f) => ({ ...f, descricao: e.target.value }))} />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setMostrarFormAnd(false)}>Cancelar</Button>
-                    <Button size="sm" onClick={lancarAndamento} disabled={salvando}
-                      className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white">
-                      {salvando && <Loader2 className="h-4 w-4 mr-1 animate-spin" />} Registrar
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-
-              {carregando ? (
-                <div className="flex justify-center py-8 text-slate-500"><Loader2 className="h-5 w-5 animate-spin" /></div>
-              ) : andamentos.length === 0 ? (
-                <p className="text-center py-8 text-slate-500 text-sm">Nenhum andamento registrado.</p>
-              ) : (
-                <div className="space-y-2">
-                  {andamentos.map((a) => {
-                    const dias = a.prazo_fatal
-                      ? Math.round((new Date(`${a.prazo_fatal}T00:00:00`) - new Date().setHours(0, 0, 0, 0)) / 86400000)
-                      : null;
-                    const sev = getPrazoSeveridade(a.cumprido ? null : dias);
-                    return (
-                      <div key={a.id} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                        <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${prazoSeveridadeConfig[sev].dot}`} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline" className="border-slate-300 text-slate-700">{a.tipo}</Badge>
-                            <span className="text-xs text-slate-500">{formatData(a.data_andamento)}</span>
-                            {a.prazo_fatal && (
-                              <span className={`text-xs px-2 py-0.5 rounded-full border ${prazoSeveridadeConfig[sev].color}`}>
-                                <Clock className="h-3 w-3 inline mr-1" />
-                                Prazo {formatData(a.prazo_fatal)}
-                              </span>
-                            )}
-                            {a.cumprido && (
-                              <span className="text-xs text-green-700 inline-flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" /> Cumprido
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-slate-800 mt-1">{a.descricao}</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {a.prazo_fatal && (
-                            <Button variant="ghost" size="sm" onClick={() => alternarCumprido(a)}
-                              title={a.cumprido ? 'Reabrir' : 'Marcar como cumprido'}>
-                              <CheckCircle2 className={`h-4 w-4 ${a.cumprido ? 'text-green-600' : 'text-slate-400'}`} />
-                            </Button>
-                          )}
-                          <Button variant="ghost" size="sm"
-                            onClick={() => setConfirm({ tipo: 'and', id: a.id, texto: a.descricao })}>
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+            <TabsContent value="andamentos" className="pt-4">
+              <AndamentosPanel
+                entidadeTipo="credito"
+                entidadeId={credito.id}
+                projetoId={credito.projeto_id}
+                usuario={usuario}
+                userProfile={userProfile}
+                onCount={setTotalAndamentos}
+              />
             </TabsContent>
+
           </Tabs>
         </DialogContent>
       </Dialog>
