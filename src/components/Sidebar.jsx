@@ -18,6 +18,8 @@ import {
   Shield,
   FolderKanban,
   Repeat,
+  Landmark,
+  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SettingsMenu from '@/components/SettingsMenu';
@@ -48,8 +50,19 @@ const Sidebar = ({
     ...(canSeeRecorrentes ? [{ id: 'recorrentes', label: 'Tarefas Recorrentes', icon: Repeat, gradient: 'from-purple-500 to-indigo-500' }] : []),
   ];
 
+  // Módulo fiscal/jurídico — créditos, e-CredAc, PER/DCOMP e contencioso
+  const fiscalItems = [
+    { id: 'creditos', label: 'Créditos', icon: Landmark, gradient: 'from-indigo-500 to-violet-600' },
+  ];
+
   const configItems = [];
   const isAdmin = userProfile?.grupo === 'adm';
+
+  configItems.push({
+    id: 'contribuintes',
+    label: 'Contribuintes',
+    icon: Building2
+  });
 
   if (isAdmin) {
     configItems.push({
@@ -235,6 +248,56 @@ const Sidebar = ({
                     w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 relative
                     ${isActive 
                       ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg` 
+                      : 'text-gray-700 hover:bg-white/60'
+                    }
+                    ${isCollapsed ? 'justify-center' : ''}
+                  `}
+                >
+                  <Icon className="h-5 w-5 flex-shrink-0" />
+                  <AnimatePresence mode="wait">
+                    {!isCollapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        className="font-semibold text-sm whitespace-nowrap"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          {/* Fiscal / Jurídico */}
+          <div className="pt-4 space-y-1">
+            {!isCollapsed && (
+              <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Fiscal / Jurídico
+              </p>
+            )}
+            {fiscalItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+
+              return (
+                <motion.button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    if (window.innerWidth < 1024) {
+                      setIsMobileOpen(false);
+                    }
+                  }}
+                  whileHover={{ scale: 1.02, x: 5 }}
+                  whileTap={{ scale: 0.98 }}
+                  title={isCollapsed ? item.label : ''}
+                  className={`
+                    w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 relative
+                    ${isActive
+                      ? `bg-gradient-to-r ${item.gradient} text-white shadow-lg`
                       : 'text-gray-700 hover:bg-white/60'
                     }
                     ${isCollapsed ? 'justify-center' : ''}

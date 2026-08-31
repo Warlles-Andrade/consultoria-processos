@@ -11,11 +11,12 @@ import ProcessDetailModal from '@/components/ProcessDetailModal';
 import ProcessChat from '@/components/ProcessChat';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import ResponsaveisManagement from '@/components/ResponsaveisManagement';
-import EmpresasManagement from '@/components/EmpresasManagement';
 import GruposManagement from '@/components/GruposManagement';
 import ProjetosManagement from '@/components/ProjetosManagement';
 import UserManagement from '@/components/UserManagement';
 import RecurringTasksView from '@/components/RecurringTasksView';
+import ContribuintesManagement from '@/components/ContribuintesManagement';
+import CreditosView from '@/components/CreditosView';
 import Sidebar from '@/components/Sidebar';
 import { statusOptions } from '@/data/mockData';
 import { Loader2, Clock, UserCheck, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react';
@@ -1241,6 +1242,8 @@ function App() {
               {activeTab === 'projetos' && 'Projetos'}
               {activeTab === 'usuarios' && 'Usuários'}
               {activeTab === 'recorrentes' && 'Tarefas Recorrentes'}
+              {activeTab === 'creditos' && 'Créditos'}
+              {activeTab === 'contribuintes' && 'Contribuintes'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
               Gestão Inteligente de Processos
@@ -1424,6 +1427,40 @@ function App() {
                     })}
                     responsaveisOptions={responsaveisComAdmin}
                     statusOptions={statusOptions}
+                    onRefresh={() => fetchData(false, false)}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'creditos' && (
+                <motion.div
+                  key="creditos"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <CreditosView
+                    usuario={usuario}
+                    userProfile={userProfile}
+                    projetos={isAdminUser ? projetos : projetos.filter(p => userProjetoIds.includes(p.id))}
+                    responsaveis={responsaveisComAdmin}
+                    onRefresh={() => fetchData(false, false)}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'contribuintes' && (
+                <motion.div
+                  key="contribuintes"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ContribuintesManagement
+                    usuario={usuario}
+                    userProfile={userProfile}
                     onRefresh={() => fetchData(false, false)}
                   />
                 </motion.div>
