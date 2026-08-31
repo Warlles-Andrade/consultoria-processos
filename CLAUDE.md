@@ -69,9 +69,13 @@ andamentos  → linha do tempo + prazos fatais de qualquer entidade acima
 
 ## Estado atual
 
-Pronto: contribuintes, créditos (com razão e prescrição), e-CredAc, PER/DCOMP.
-Falta: telas de contencioso administrativo e judicial, painel consolidado de
-prazos (`v_prazos_criticos` já existe no banco) e dashboard fiscal.
+Pronto: contribuintes, créditos (razão e prescrição), e-CredAc, PER/DCOMP,
+contencioso administrativo e judicial, painel consolidado de prazos.
+
+Falta: dashboard fiscal com gráficos, exportação Excel dos módulos fiscais,
+vínculo das tarefas de `processos` a um crédito pela interface (a coluna
+`credito_id` já existe no banco) e atualização do
+`DOCUMENTACAO_COMPLETA_SISTEMA.md` com a camada fiscal.
 
 ## Projeto de referência (consulta)
 

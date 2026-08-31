@@ -19,6 +19,8 @@ import ContribuintesManagement from '@/components/ContribuintesManagement';
 import CreditosView from '@/components/CreditosView';
 import HabilitacoesView from '@/components/HabilitacoesView';
 import PerdcompsView from '@/components/PerdcompsView';
+import ContenciosoView from '@/components/ContenciosoView';
+import PrazosView from '@/components/PrazosView';
 import Sidebar from '@/components/Sidebar';
 import { statusOptions } from '@/data/mockData';
 import { Loader2, Clock, UserCheck, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react';
@@ -1247,6 +1249,8 @@ function App() {
               {activeTab === 'creditos' && 'Créditos'}
               {activeTab === 'habilitacoes' && 'Habilitação de Créditos'}
               {activeTab === 'perdcomps' && 'PER/DCOMP'}
+              {activeTab === 'contencioso' && 'Contencioso'}
+              {activeTab === 'prazos' && 'Prazos'}
               {activeTab === 'contribuintes' && 'Contribuintes'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
@@ -1485,6 +1489,36 @@ function App() {
                     responsaveis={responsaveisComAdmin}
                     onRefresh={() => fetchData(false, false)}
                   />
+                </motion.div>
+              )}
+
+              {activeTab === 'contencioso' && (
+                <motion.div
+                  key="contencioso"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <ContenciosoView
+                    usuario={usuario}
+                    userProfile={userProfile}
+                    projetos={isAdminUser ? projetos : projetos.filter(p => userProjetoIds.includes(p.id))}
+                    responsaveis={responsaveisComAdmin}
+                    onRefresh={() => fetchData(false, false)}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'prazos' && (
+                <motion.div
+                  key="prazos"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <PrazosView onRefresh={() => fetchData(false, false)} />
                 </motion.div>
               )}
 
