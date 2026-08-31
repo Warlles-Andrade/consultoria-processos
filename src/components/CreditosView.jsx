@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { KpiCard } from '@/components/ui/kpi-card';
 import { useToast } from '@/components/ui/use-toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import CreditoForm from '@/components/CreditoForm';
@@ -24,25 +25,6 @@ import {
 } from '@/data/fiscalDomain';
 
 const TODOS = '__todos__';
-
-const KpiCard = ({ titulo, valor, detalhe, icone: Icone, cor, delay = 0 }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay }}
-    whileHover={{ scale: 1.02 }}
-    className={`rounded-2xl border p-4 ${cor}`}
-  >
-    <div className="flex items-start justify-between">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide opacity-80">{titulo}</p>
-        <p className="text-2xl font-bold tabular-nums mt-1 truncate">{valor}</p>
-        {detalhe && <p className="text-xs opacity-75 mt-0.5">{detalhe}</p>}
-      </div>
-      <Icone className="h-5 w-5 opacity-60 flex-shrink-0" />
-    </div>
-  </motion.div>
-);
 
 const CreditosView = ({ usuario, userProfile, projetos = [], responsaveis = [], onRefresh }) => {
   const { toast } = useToast();

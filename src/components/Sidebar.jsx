@@ -20,6 +20,8 @@ import {
   Repeat,
   Landmark,
   Building2,
+  FileCheck2,
+  Receipt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SettingsMenu from '@/components/SettingsMenu';
@@ -53,6 +55,8 @@ const Sidebar = ({
   // Módulo fiscal/jurídico — créditos, e-CredAc, PER/DCOMP e contencioso
   const fiscalItems = [
     { id: 'creditos', label: 'Créditos', icon: Landmark, gradient: 'from-indigo-500 to-violet-600' },
+    { id: 'habilitacoes', label: 'e-CredAc', icon: FileCheck2, gradient: 'from-teal-500 to-emerald-600' },
+    { id: 'perdcomps', label: 'PER/DCOMP', icon: Receipt, gradient: 'from-blue-500 to-cyan-600' },
   ];
 
   const configItems = [];

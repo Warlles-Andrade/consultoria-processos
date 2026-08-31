@@ -17,6 +17,8 @@ import UserManagement from '@/components/UserManagement';
 import RecurringTasksView from '@/components/RecurringTasksView';
 import ContribuintesManagement from '@/components/ContribuintesManagement';
 import CreditosView from '@/components/CreditosView';
+import HabilitacoesView from '@/components/HabilitacoesView';
+import PerdcompsView from '@/components/PerdcompsView';
 import Sidebar from '@/components/Sidebar';
 import { statusOptions } from '@/data/mockData';
 import { Loader2, Clock, UserCheck, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react';
@@ -1243,6 +1245,8 @@ function App() {
               {activeTab === 'usuarios' && 'Usuários'}
               {activeTab === 'recorrentes' && 'Tarefas Recorrentes'}
               {activeTab === 'creditos' && 'Créditos'}
+              {activeTab === 'habilitacoes' && 'Habilitação de Créditos'}
+              {activeTab === 'perdcomps' && 'PER/DCOMP'}
               {activeTab === 'contribuintes' && 'Contribuintes'}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
@@ -1444,6 +1448,40 @@ function App() {
                     usuario={usuario}
                     userProfile={userProfile}
                     projetos={isAdminUser ? projetos : projetos.filter(p => userProjetoIds.includes(p.id))}
+                    responsaveis={responsaveisComAdmin}
+                    onRefresh={() => fetchData(false, false)}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'habilitacoes' && (
+                <motion.div
+                  key="habilitacoes"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <HabilitacoesView
+                    usuario={usuario}
+                    userProfile={userProfile}
+                    responsaveis={responsaveisComAdmin}
+                    onRefresh={() => fetchData(false, false)}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'perdcomps' && (
+                <motion.div
+                  key="perdcomps"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <PerdcompsView
+                    usuario={usuario}
+                    userProfile={userProfile}
                     responsaveis={responsaveisComAdmin}
                     onRefresh={() => fetchData(false, false)}
                   />
