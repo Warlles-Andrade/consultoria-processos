@@ -11,9 +11,10 @@ import HabilitacaoForm from '@/components/HabilitacaoForm';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileCheck2, PlusCircle, Search, Edit2, Trash2, Loader2,
-  Banknote, CheckCircle2, AlertTriangle, X, Clock,
+  Banknote, CheckCircle2, AlertTriangle, X, Clock, Download,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
+import { exportarHabilitacoes } from '@/lib/fiscalExport';
 import {
   listarHabilitacoes, salvarHabilitacao, excluirHabilitacao, listarCreditos,
 } from '@/lib/fiscalApi';
@@ -122,6 +123,16 @@ const HabilitacoesView = ({ usuario, userProfile, responsaveis = [], onRefresh }
     return { pleiteado, autorizado, emExigencia, prazoCritico };
   }, [filtradas]);
 
+  /** Exporta o que está na tela — filtros aplicados, não a base inteira. */
+  const exportar = () => {
+    try {
+      const arquivo = exportarHabilitacoes(filtradas);
+      toast({ title: 'Exportação concluída', description: `${arquivo} foi baixado.`, className: 'bg-green-500 text-white' });
+    } catch (error) {
+      toast({ title: 'Erro na exportação', description: getPublicErrorMessage(error), variant: 'destructive' });
+    }
+  };
+
   const temFiltro = fRegime !== TODOS || fSituacao !== TODOS || !!termo;
 
   return (
@@ -136,13 +147,18 @@ const HabilitacoesView = ({ usuario, userProfile, responsaveis = [], onRefresh }
             <p className="text-sm text-slate-500">e-CredAc — CAT 207/2009 (crédito acumulado) e CAT 83/2009 (ICMS-ST)</p>
           </div>
         </div>
-        <Button
-          onClick={() => { setEmEdicao(null); setFormAberto(true); }}
-          disabled={creditos.length === 0}
-          className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white"
-        >
-          <PlusCircle className="h-4 w-4 mr-2" /> Nova Habilitação
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportar} disabled={filtradas.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Exportar
+          </Button>
+          <Button
+            onClick={() => { setEmEdicao(null); setFormAberto(true); }}
+            disabled={creditos.length === 0}
+            className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white"
+          >
+            <PlusCircle className="h-4 w-4 mr-2" /> Nova Habilitação
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

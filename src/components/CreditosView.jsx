@@ -12,9 +12,10 @@ import CreditoDetailModal from '@/components/CreditoDetailModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Landmark, PlusCircle, Search, Eye, Edit2, Trash2, Loader2,
-  Wallet, TrendingUp, AlertTriangle, FileStack, X,
+  Wallet, TrendingUp, AlertTriangle, FileStack, X, Download,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
+import { exportarCreditos } from '@/lib/fiscalExport';
 import {
   listarCreditosComSaldo, salvarCredito, excluirCredito, listarContribuintes,
 } from '@/lib/fiscalApi';
@@ -122,6 +123,16 @@ const CreditosView = ({ usuario, userProfile, projetos = [], responsaveis = [], 
     return { levantado, homologado, saldo, emRisco };
   }, [filtrados]);
 
+  /** Exporta o que está na tela — filtros aplicados, não a base inteira. */
+  const exportar = () => {
+    try {
+      const arquivo = exportarCreditos(filtrados);
+      toast({ title: 'Exportação concluída', description: `${arquivo} foi baixado.`, className: 'bg-green-500 text-white' });
+    } catch (error) {
+      toast({ title: 'Erro na exportação', description: getPublicErrorMessage(error), variant: 'destructive' });
+    }
+  };
+
   const temFiltro = fContribuinte !== TODOS || fSituacao !== TODOS || fTributo !== TODOS || fEsfera !== TODOS || !!termo;
 
   const limparFiltros = () => {
@@ -140,12 +151,17 @@ const CreditosView = ({ usuario, userProfile, projetos = [], responsaveis = [], 
             <p className="text-sm text-slate-500">Levantamento, saldo e prazo prescricional</p>
           </div>
         </div>
-        <Button
-          onClick={() => { setEmEdicao(null); setFormAberto(true); }}
-          className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white"
-        >
-          <PlusCircle className="h-4 w-4 mr-2" /> Novo Crédito
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportar} disabled={filtrados.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Exportar
+          </Button>
+          <Button
+            onClick={() => { setEmEdicao(null); setFormAberto(true); }}
+            className="bg-gradient-to-r from-indigo-500 to-violet-600 text-white"
+          >
+            <PlusCircle className="h-4 w-4 mr-2" /> Novo Crédito
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}

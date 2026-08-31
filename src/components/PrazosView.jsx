@@ -9,10 +9,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlarmClock, Search, Loader2, AlertOctagon, AlertTriangle,
-  Clock, CalendarCheck, RefreshCw, X,
+  Clock, CalendarCheck, RefreshCw, X, Download,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
 import { listarPrazosCriticos } from '@/lib/fiscalApi';
+import { exportarPrazos } from '@/lib/fiscalExport';
 import {
   entidadeTipoLabel, getPrazoSeveridade, prazoSeveridadeConfig,
   getSituacaoColor, formatData,
@@ -99,6 +100,20 @@ const PrazosView = ({ onRefresh }) => {
     };
   }, [prazos]);
 
+  /** Exporta a lista como está na tela — mesma ordem, mesmos filtros. */
+  const exportar = () => {
+    try {
+      const arquivo = exportarPrazos(
+        filtrados,
+        (dias) => prazoSeveridadeConfig[getPrazoSeveridade(dias)].label,
+        entidadeTipoLabel
+      );
+      toast({ title: 'Exportação concluída', description: `${arquivo} foi baixado.`, className: 'bg-green-500 text-white' });
+    } catch (error) {
+      toast({ title: 'Erro na exportação', description: getPublicErrorMessage(error), variant: 'destructive' });
+    }
+  };
+
   const temFiltro = fEntidade !== TODOS || fSeveridade !== TODOS || !!termo || horizonte !== '90';
 
   return (
@@ -115,9 +130,14 @@ const PrazosView = ({ onRefresh }) => {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={carregar} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportar} disabled={filtrados.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Exportar
+          </Button>
+          <Button variant="outline" onClick={carregar} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

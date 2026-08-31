@@ -13,9 +13,10 @@ import ProcessoJudicialForm from '@/components/ProcessoJudicialForm';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Gavel, Scale, PlusCircle, Search, Edit2, Trash2, Loader2,
-  Banknote, ShieldCheck, Clock, X,
+  Banknote, ShieldCheck, Clock, X, Download,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
+import { exportarProcessosAdministrativos, exportarProcessosJudiciais } from '@/lib/fiscalExport';
 import {
   listarProcessosAdministrativos, salvarProcessoAdministrativo, excluirProcessoAdministrativo,
   listarProcessosJudiciais, salvarProcessoJudicial, excluirProcessoJudicial,
@@ -208,6 +209,18 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
     return { ativas, estimado, transitadas, compensacaoCritica };
   }, [judFiltrados]);
 
+  /** Exporta o que está na aba visível, com os filtros dela aplicados. */
+  const exportar = (qual) => {
+    try {
+      const arquivo = qual === 'adm'
+        ? exportarProcessosAdministrativos(admFiltrados)
+        : exportarProcessosJudiciais(judFiltrados);
+      toast({ title: 'Exportação concluída', description: `${arquivo} foi baixado.`, className: 'bg-green-500 text-white' });
+    } catch (error) {
+      toast({ title: 'Erro na exportação', description: getPublicErrorMessage(error), variant: 'destructive' });
+    }
+  };
+
   const semContribuintes = contribuintes.length === 0;
 
   return (
@@ -270,10 +283,16 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
                   <CardTitle className="text-base font-semibold text-slate-700">
                     Processos administrativos ({admFiltrados.length})
                   </CardTitle>
-                  <Button size="sm" onClick={() => { setAdmEdicao(null); setFormAdmAberto(true); }}
-                    className="bg-gradient-to-r from-amber-500 to-orange-600 text-white">
-                    <PlusCircle className="h-4 w-4 mr-2" /> Novo processo
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => exportar('adm')}
+                      disabled={admFiltrados.length === 0}>
+                      <Download className="h-4 w-4 mr-2" /> Exportar
+                    </Button>
+                    <Button size="sm" onClick={() => { setAdmEdicao(null); setFormAdmAberto(true); }}
+                      className="bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+                      <PlusCircle className="h-4 w-4 mr-2" /> Novo processo
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -426,10 +445,16 @@ const ContenciosoView = ({ usuario, userProfile, projetos = [], responsaveis = [
                   <CardTitle className="text-base font-semibold text-slate-700">
                     Ações judiciais ({judFiltrados.length})
                   </CardTitle>
-                  <Button size="sm" onClick={() => { setJudEdicao(null); setFormJudAberto(true); }}
-                    className="bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white">
-                    <PlusCircle className="h-4 w-4 mr-2" /> Nova ação
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => exportar('jud')}
+                      disabled={judFiltrados.length === 0}>
+                      <Download className="h-4 w-4 mr-2" /> Exportar
+                    </Button>
+                    <Button size="sm" onClick={() => { setJudEdicao(null); setFormJudAberto(true); }}
+                      className="bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white">
+                      <PlusCircle className="h-4 w-4 mr-2" /> Nova ação
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

@@ -11,9 +11,10 @@ import PerdcompForm from '@/components/PerdcompForm';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Receipt, PlusCircle, Search, Edit2, Trash2, Loader2,
-  Banknote, ArrowLeftRight, Hourglass, X,
+  Banknote, ArrowLeftRight, Hourglass, X, Download,
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
+import { exportarPerdcomps } from '@/lib/fiscalExport';
 import {
   listarPerdcomps, salvarPerdcomp, excluirPerdcomp, listarCreditos,
   listarDebitosPerdcomp, salvarDebitoPerdcomp, excluirDebitoPerdcomp,
@@ -156,6 +157,25 @@ const PerdcompsView = ({ usuario, userProfile, responsaveis = [], onRefresh }) =
     return { original, compensado, emAnalise, homologacaoProxima };
   }, [filtrados]);
 
+  /**
+   * Exporta o que está na tela, em duas abas: os documentos e os débitos
+   * compensados de cada um (buscados sob demanda, só no clique).
+   */
+  const [exportando, setExportando] = useState(false);
+  const exportar = async () => {
+    setExportando(true);
+    try {
+      const listas = await Promise.all(filtrados.map((p) => listarDebitosPerdcomp(p.id)));
+      const debitos = listas.flat().filter(Boolean);
+      const arquivo = exportarPerdcomps(filtrados, debitos);
+      toast({ title: 'Exportação concluída', description: `${arquivo} foi baixado.`, className: 'bg-green-500 text-white' });
+    } catch (error) {
+      toast({ title: 'Erro na exportação', description: getPublicErrorMessage(error), variant: 'destructive' });
+    } finally {
+      setExportando(false);
+    }
+  };
+
   const temFiltro = fTipo !== TODOS || fSituacao !== TODOS || !!termo;
 
   return (
@@ -170,10 +190,18 @@ const PerdcompsView = ({ usuario, userProfile, responsaveis = [], onRefresh }) =
             <p className="text-sm text-slate-500">Restituição, ressarcimento, reembolso e compensação federal</p>
           </div>
         </div>
-        <Button onClick={abrirNovo} disabled={creditos.length === 0}
-          className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white">
-          <PlusCircle className="h-4 w-4 mr-2" /> Novo PER/DCOMP
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportar} disabled={filtrados.length === 0 || exportando}>
+            {exportando
+              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              : <Download className="h-4 w-4 mr-2" />}
+            Exportar
+          </Button>
+          <Button onClick={abrirNovo} disabled={creditos.length === 0}
+            className="bg-gradient-to-r from-blue-500 to-cyan-600 text-white">
+            <PlusCircle className="h-4 w-4 mr-2" /> Novo PER/DCOMP
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
