@@ -21,6 +21,7 @@ import HabilitacoesView from '@/components/HabilitacoesView';
 import PerdcompsView from '@/components/PerdcompsView';
 import ContenciosoView from '@/components/ContenciosoView';
 import PrazosView from '@/components/PrazosView';
+import FiscalDashboard from '@/components/FiscalDashboard';
 import Sidebar from '@/components/Sidebar';
 import { statusOptions } from '@/data/mockData';
 import { Loader2, Clock, UserCheck, AlertCircle, Lock, Eye, EyeOff } from 'lucide-react';
@@ -1246,6 +1247,7 @@ function App() {
               {activeTab === 'projetos' && 'Projetos'}
               {activeTab === 'usuarios' && 'Usuários'}
               {activeTab === 'recorrentes' && 'Tarefas Recorrentes'}
+              {activeTab === 'painel-fiscal' && 'Painel Fiscal'}
               {activeTab === 'creditos' && 'Créditos'}
               {activeTab === 'habilitacoes' && 'Habilitação de Créditos'}
               {activeTab === 'perdcomps' && 'PER/DCOMP'}
@@ -1437,6 +1439,18 @@ function App() {
                     statusOptions={statusOptions}
                     onRefresh={() => fetchData(false, false)}
                   />
+                </motion.div>
+              )}
+
+              {activeTab === 'painel-fiscal' && (
+                <motion.div
+                  key="painel-fiscal"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <FiscalDashboard onNavigate={setActiveTab} />
                 </motion.div>
               )}
 
