@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { getStatusColor, getPriorityColor, calcDiasProcesso } from '@/data/mockData';
-import { Calendar, User, FolderKanban, Info, UserCheck, UserPlus, AlertCircle, Paperclip, FileText, Download, DownloadCloud, Loader2, Edit, ChevronDown, ChevronUp, History, Plus, Trash2, ArrowRight } from 'lucide-react';
+import { Calendar, User, FolderKanban, Info, UserCheck, UserPlus, AlertCircle, Paperclip, FileText, Download, DownloadCloud, Loader2, Edit, ChevronDown, ChevronUp, History, Plus, Trash2, ArrowRight, Landmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,6 +17,22 @@ const ProcessDetailModal = ({ isOpen, onClose, process, isAdmin = false, projeto
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [credito, setCredito] = useState(null);
+
+  // Crédito vinculado — busca sob demanda para não pesar o carregamento da
+  // lista. Falha em silêncio se as migrations fiscais não foram aplicadas.
+  useEffect(() => {
+    if (!isOpen || !process?.credito_id) {
+      setCredito(null);
+      return;
+    }
+    supabase
+      .from('creditos')
+      .select('id, codigo, titulo, tributo')
+      .eq('id', process.credito_id)
+      .maybeSingle()
+      .then(({ data, error }) => setCredito(error ? null : data));
+  }, [isOpen, process?.credito_id]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -187,6 +203,14 @@ const ProcessDetailModal = ({ isOpen, onClose, process, isAdmin = false, projeto
             <InfoCard icon={<FolderKanban />} label="Projeto" value={projetos.find(p => p.id === process.projeto_id)?.nome || '—'} />
             <InfoCard icon={<User />} label="Responsável" value={process.responsavel} />
           </div>
+
+          {credito && (
+            <InfoCard
+              icon={<Landmark />}
+              label="Crédito vinculado"
+              value={`${credito.codigo ? `${credito.codigo} — ` : ''}${credito.titulo}${credito.tributo ? ` (${credito.tributo})` : ''}`}
+            />
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <InfoCard

@@ -6,11 +6,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { AlertCircle, Calendar, Paperclip, Upload, X, FileText, Download, Loader2 } from 'lucide-react';
+import { AlertCircle, Calendar, Paperclip, Upload, X, FileText, Download, Loader2, Landmark } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
 
-const ProcessForm = ({ 
+/** Radix Select não aceita item de valor vazio; este sentinela representa "nenhum". */
+const SEM_CREDITO = '__sem_credito__';
+
+const ProcessForm = ({
   isOpen, 
   onClose, 
   process, 
@@ -28,6 +31,10 @@ const ProcessForm = ({
   const [loadingAttachments, setLoadingAttachments] = useState(false);
   const [attachmentsToDelete, setAttachmentsToDelete] = useState([]);
   const [recurringTemplates, setRecurringTemplates] = useState([]);
+  const [creditos, setCreditos] = useState([]);
+  // Só é true quando a consulta a `creditos` responde sem erro, ou seja,
+  // quando as migrations fiscais já foram aplicadas neste banco.
+  const [fiscalDisponivel, setFiscalDisponivel] = useState(false);
 
   const getInitialFormData = () => {
     const initialStatus = statusOptions[0];
@@ -44,6 +51,7 @@ const ProcessForm = ({
         justificativaReplanejamento: '',
         usar_tarefa_recorrente: false,
         recurring_template_id: '',
+        credito_id: '',
     };
   };
 
@@ -82,6 +90,22 @@ const ProcessForm = ({
         });
     }
   }, [isOpen, process]);
+
+  // Créditos disponíveis para vincular. A RLS já limita aos projetos do
+  // usuário; aqui só filtramos por projeto na hora de montar o select.
+  // Falha em silêncio: se as tabelas fiscais ainda não existirem no banco,
+  // o campo simplesmente não aparece e o resto do formulário continua.
+  useEffect(() => {
+    if (!isOpen) return;
+    supabase
+      .from('creditos')
+      .select('id, codigo, titulo, tributo, projeto_id, situacao')
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        setFiscalDisponivel(!error);
+        setCreditos(error ? [] : (data || []));
+      });
+  }, [isOpen]);
 
   // Derivar cliente_filter a partir do projeto selecionado (para preencher ao editar)
   const deriveClienteFilter = (data) => {
@@ -282,7 +306,7 @@ const ProcessForm = ({
       }
     }
 
-    const { cliente_filter, usar_tarefa_recorrente, recurring_template_id, ...saveData } = formData;
+    const { cliente_filter, usar_tarefa_recorrente, recurring_template_id, credito_id, ...saveData } = formData;
 
     // Se preencheu prazo sem data de início, usa hoje como início e avisa
     let dataInicio = formData.data_inicio?.trim() || null;
@@ -298,6 +322,10 @@ const ProcessForm = ({
 
     onSave({
       ...saveData,
+      // Só manda credito_id se a coluna existe (migrations fiscais aplicadas);
+      // caso contrário o PostgREST recusaria a coluna desconhecida.
+      // String vazia não é uuid válido, então vira null.
+      ...(fiscalDisponivel ? { credito_id: credito_id || null } : {}),
       data_inicio: dataInicio,
       prazo: formData.prazo?.trim() || null,
       parent_recurring_id: (usar_tarefa_recorrente && recurring_template_id) ? recurring_template_id : (process?.parent_recurring_id || null),
@@ -337,6 +365,10 @@ const ProcessForm = ({
 
   const filteredRecurringTemplates = formData.projeto_id
     ? recurringTemplates.filter(t => t.projeto_id === formData.projeto_id)
+    : [];
+
+  const filteredCreditos = formData.projeto_id
+    ? creditos.filter(c => c.projeto_id === formData.projeto_id)
     : [];
 
   return (
@@ -449,6 +481,42 @@ const ProcessForm = ({
               {formData.usar_tarefa_recorrente && formData.recurring_template_id && (
                 <p className="text-xs text-indigo-700">Campos preenchidos a partir do molde — ainda podem ser ajustados abaixo.</p>
               )}
+            </div>
+          )}
+
+          {/* Vínculo com um crédito do módulo fiscal — opcional */}
+          {creditos.length > 0 && (
+            <div className="flex flex-col gap-2 p-3 rounded-xl border border-violet-100 bg-violet-50/50">
+              <label className="flex items-center gap-2 text-sm font-medium text-violet-900">
+                <Landmark className="h-4 w-4" />
+                Crédito vinculado
+              </label>
+              <Select
+                name="credito_id"
+                value={formData.credito_id || SEM_CREDITO}
+                onValueChange={(value) => handleSelectChange('credito_id', value === SEM_CREDITO ? '' : value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={
+                    !formData.projeto_id ? 'Selecione o projeto primeiro' : 'Nenhum'
+                  } />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SEM_CREDITO}>Nenhum</SelectItem>
+                  {filteredCreditos.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.codigo ? `${c.codigo} — ` : ''}{c.titulo} ({c.tributo})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-violet-700">
+                {!formData.projeto_id
+                  ? 'Os créditos são filtrados pelo projeto da tarefa.'
+                  : filteredCreditos.length === 0
+                    ? 'Nenhum crédito cadastrado neste projeto.'
+                    : 'Amarra esta tarefa ao levantamento correspondente.'}
+              </p>
             </div>
           )}
 
