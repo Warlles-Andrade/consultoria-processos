@@ -64,18 +64,36 @@ andamentos  → linha do tempo + prazos fatais de qualquer entidade acima
 | `src/data/fiscalDomain.js` | Catálogo de opções, cores, severidade de prazo e formatadores (CNPJ, moeda, competência, CNJ) |
 | `src/lib/fiscalApi.js` | Acesso a dados do módulo fiscal (carimbo de auditoria, limpeza de colunas geradas e joins) |
 | `src/components/Contribuintes*`, `Credito*`, `Habilitac*`, `Perdcomp*` | Telas fiscais |
+| `src/lib/fiscalExport.js` | Planilhas Excel (moeda como número com formato de célula, nunca texto) |
 | `src/components/ui/currency-input.jsx`, `kpi-card.jsx` | Primitivas criadas para o módulo fiscal |
-| `DOCUMENTACAO_COMPLETA_SISTEMA.md` | Documentação herdada do Workive (camada de tarefas) |
+| `DOCUMENTACAO_COMPLETA_SISTEMA.md` | Documentação das duas camadas (seções 13–18 = fiscal) |
 
 ## Estado atual
 
 Pronto: contribuintes, créditos (razão e prescrição), e-CredAc, PER/DCOMP,
-contencioso administrativo e judicial, painel consolidado de prazos.
+contencioso administrativo e judicial, painel consolidado de prazos, painel
+fiscal com gráficos, exportação Excel de todos os módulos e vínculo das tarefas
+a um crédito.
 
-Falta: dashboard fiscal com gráficos, exportação Excel dos módulos fiscais,
-vínculo das tarefas de `processos` a um crédito pela interface (a coluna
-`credito_id` já existe no banco) e atualização do
-`DOCUMENTACAO_COMPLETA_SISTEMA.md` com a camada fiscal.
+**Nada foi testado contra um banco real** — as migrations em `sql/` ainda
+precisam ser aplicadas no Supabase pelo usuário (ver `sql/LEIA-ME.md`).
+
+### Gráficos
+
+Ao mexer em gráfico, carregue a skill `dataviz` antes. A paleta em
+`FiscalDashboard.jsx` já foi validada para as superfícies reais do app
+(`#fdfdfd` claro / `#232326` escuro) em `--pairs all` nos dois modos.
+Séries únicas usam **um só tom** — cor que não carrega informação é ruído.
+
+Cuidado conhecido: o `<LabelList>` do Recharts quebra o texto em várias linhas
+quando a barra é curta (deriva a largura do próprio retângulo). Por isso o
+rótulo de valor é um `<text>` desenhado à mão em `RotuloValor`.
+
+### Compatibilidade com bancos sem as migrations
+
+`ProcessForm` só envia `credito_id` quando a consulta a `creditos` responde sem
+erro. Mantenha essa blindagem: sem ela, quem não aplicou a migration 03 tem o
+salvamento de qualquer tarefa quebrado por coluna desconhecida.
 
 ## Projeto de referência (consulta)
 

@@ -1,8 +1,18 @@
-# 📋 Documentação Completa — Workive (Sistema de Gestão de Processos)
+# 📋 Documentação Completa — CEP Consultoria (Processos + Módulo Fiscal)
 
-> **Versão:** 2.0
-> **Data:** 15/05/2026
-> **Stack:** React + Vite + Supabase + TailwindCSS + Framer Motion + Recharts + XLSX + Nodemailer (Vercel Serverless)
+> **Versão:** 3.0
+> **Data:** 31/08/2026
+> **Stack:** React 19 + Vite 7 + Supabase (Postgres/RLS/Auth/Storage) + TailwindCSS + Radix UI + Framer Motion + Recharts + XLSX + Nodemailer (Vercel Serverless)
+
+O sistema tem **duas camadas**:
+
+| Camada | O que é | Seções |
+| --- | --- | --- |
+| **Operacional** (herdada do Workive) | Tarefas com status, prazo, kanban, chat e anexos, organizadas em `cliente → projeto → processo` | 1 a 12 |
+| **Fiscal/Jurídica** | Créditos tributários com valor e saldo, habilitação e-CredAc, PER/DCOMP, contencioso e prazos legais | 13 a 18 |
+
+A camada fiscal não substitui a operacional: uma tarefa continua sendo uma
+tarefa, e pode opcionalmente apontar para um crédito (`processos.credito_id`).
 
 ---
 
@@ -37,6 +47,15 @@
 10. [Controle de Acesso por Perfil](#10-controle-de-acesso-por-perfil)
 11. [Sincronização de Filtros (localStorage)](#11-sincronização-de-filtros-localstorage)
 12. [Variáveis de Ambiente](#12-variáveis-de-ambiente)
+
+**Camada Fiscal/Jurídica**
+
+13. [Visão Geral do Módulo Fiscal](#13-visão-geral-do-módulo-fiscal)
+14. [Telas Fiscais](#14-telas-fiscais)
+15. [Estrutura de Dados Fiscal](#15-estrutura-de-dados-fiscal)
+16. [Regras Invioláveis do Módulo Fiscal](#16-regras-invioláveis-do-módulo-fiscal)
+17. [Exportação Excel](#17-exportação-excel)
+18. [Lacunas Conhecidas Desta Documentação](#18-lacunas-conhecidas-desta-documentação)
 
 ---
 
@@ -972,6 +991,211 @@ Tabela, Kanban e Gantt compartilham as mesmas chaves para que alterar o filtro e
 | `SUPABASE_SERVICE_ROLE_KEY` | Chave de serviço (admin) do Supabase |
 | `GMAIL_APP_PASSWORD` | Senha de aplicativo Gmail para envio |
 | `GMAIL_USER` | E-mail remetente (padrão: `claudinojames1702@gmail.com`) |
+
+---
+
+## 13. Visão Geral do Módulo Fiscal
+
+Atende a consultoria fiscal/jurídica: **levantamento de créditos tributários**,
+**habilitação** (e-CredAc), **PER/DCOMP** e **contencioso** administrativo e judicial.
+
+### Fluxo do negócio
+
+```
+Contribuinte (CNPJ)
+      │
+      └── Crédito (levantamento: tributo, competência, valor)
+                │
+                ├── Razão do crédito ......... movimentos C/D → saldo disponível
+                ├── Habilitação .............. e-CredAc: CAT 207/2009 e CAT 83/2009
+                ├── PER/DCOMP ................ federal, com débitos compensados
+                ├── Processo administrativo .. DRJ, CARF, CSRF, TIT-SP, TAT/MS…
+                └── Processo judicial ........ CNJ, trânsito em julgado, habilitação RFB
+```
+
+Toda entidade fiscal carrega `projeto_id` e usa a **mesma regra de acesso das
+tarefas**: usuário ativo E (admin OU com acesso ao projeto).
+
+### Pré-requisito de instalação
+
+As tabelas são criadas por 3 migrations que precisam ser aplicadas **em ordem**
+no SQL Editor do Supabase. O passo a passo está em **`sql/LEIA-ME.md`**.
+Enquanto não forem aplicadas, as telas fiscais abrem mas não gravam.
+
+---
+
+## 14. Telas Fiscais
+
+Barra lateral, seção **Fiscal / Jurídico**:
+
+| Tela | Componente | O que faz |
+| --- | --- | --- |
+| **Painel Fiscal** | `FiscalDashboard.jsx` | 5 números-chave (levantado, homologado, saldo, compensado, em discussão), faixa de prazos por severidade e 4 gráficos: valor por tributo, créditos por situação, saldo por contribuinte e composição por esfera |
+| **Créditos** | `CreditosView.jsx` | Lista com KPIs e filtros por contribuinte, situação, tributo e esfera |
+| **e-CredAc** | `HabilitacoesView.jsx` | Pedidos CAT 207/2009 e CAT 83/2009, com prazo de resposta a exigência |
+| **PER/DCOMP** | `PerdcompsView.jsx` | Documentos federais, com homologação tácita e débitos compensados |
+| **Contencioso** | `ContenciosoView.jsx` | Abas Administrativo e Judicial, cada uma com KPIs e filtros próprios |
+| **Prazos** | `PrazosView.jsx` | Todos os prazos legais em uma lista, do mais urgente ao menos |
+
+Em **Configurações**: **Contribuintes** (`ContribuintesManagement.jsx`) — CNPJ com
+validação de dígitos, IE/IM, UF, regime tributário e posto fiscal.
+
+### Modais e formulários
+
+| Componente | Observação |
+| --- | --- |
+| `CreditoForm.jsx` | Escolher o tributo já posiciona a esfera; o projeto fica restrito ao cliente do contribuinte |
+| `CreditoDetailModal.jsx` | Abas Dados, **Razão** (lançamentos C/D com saldo recalculado) e Andamentos (linha do tempo com prazo fatal) |
+| `HabilitacaoForm.jsx` | A modalidade é filtrada pelo regime; contribuinte e projeto vêm do crédito |
+| `PerdcompForm.jsx` | Débitos compensados editados na mesma tela; havendo débitos, o valor compensado passa a ser a soma deles |
+| `ProcessoAdmForm.jsx` | Órgão é campo livre com sugestões por esfera/UF (`datalist`) — tribunais estaduais mudam e não cabem em lista fixa |
+| `ProcessoJudicialForm.jsx` | Número CNJ formatado, marcos processuais e bloco de habilitação prévia na RFB |
+
+### Severidade de prazo
+
+Aplicada em todas as telas, calculada sobre os dias restantes:
+
+| Severidade | Faixa | Uso |
+| --- | --- | --- |
+| Vencido | < 0 dias | Vermelho; aparece sempre, mesmo fora do horizonte filtrado |
+| Crítico | 0 a 30 dias | Laranja |
+| Atenção | 31 a 90 dias | Âmbar |
+| No prazo | > 90 dias | Verde |
+
+---
+
+## 15. Estrutura de Dados Fiscal
+
+Migrations em `sql/2026-08-28_0{1,2,3}_*.sql`.
+
+### Tabelas
+
+| Tabela | Papel | Colunas que importam |
+| --- | --- | --- |
+| `contribuintes` | CNPJ atendido, sob um `cliente` | `cnpj` (só dígitos, UNIQUE), `inscricao_estadual`, `uf`, `regime_tributario`, `posto_fiscal` |
+| `creditos` | O levantamento | `codigo` (auto `CRD-ano-0000`), `tributo`, `esfera`, `origem`, `valor_levantado`, `valor_homologado`, `data_base_prescricao`, **`data_limite_prescricao`** (gerada) |
+| `credito_movimentos` | Razão do crédito | `natureza` (`C` soma / `D` subtrai), `tipo`, `valor`, `origem_tipo`/`origem_id` (referência polimórfica) |
+| `habilitacoes` | e-CredAc | `regime` (CAT 207/2009, CAT 83/2009), `modalidade`, `numero_protocolo`, `valor_pleiteado`/`autorizado`/`glosado`, `prazo_resposta` |
+| `perdcomps` | Federal | `numero` (UNIQUE), `tipo`, `data_transmissao`, **`data_limite_homologacao`** (gerada), `prazo_manifestacao`, `retificador_de_id` |
+| `perdcomp_debitos` | Débitos de uma DCOMP | `codigo_receita`, `valor_principal`/`multa`/`juros`, **`valor_total`** (gerada) |
+| `processos_administrativos` | Contencioso administrativo | `esfera`, `orgao_atual` (texto livre), `numero_processo`, `numero_auto_infracao`, `natureza`, `tipo`, `instancia`, valores autuado/discussão/cancelado/mantido, `prazo_impugnacao`, `proximo_prazo` |
+| `processos_judiciais` | Contencioso judicial | `numero_cnj`, `tipo_acao`, `polo`, `data_transito_julgado`, **`prazo_compensacao`** (gerada), `habilitacao_previa_rfb` |
+| `andamentos` | Linha do tempo de qualquer entidade acima | `entidade_tipo`/`entidade_id`, `tipo`, `prazo_fatal`, `cumprido` |
+
+### Colunas geradas (nunca enviar no payload de escrita)
+
+| Coluna | Fórmula | Significado |
+| --- | --- | --- |
+| `creditos.data_limite_prescricao` | `data_base_prescricao + 5 anos` | Prescrição do crédito |
+| `perdcomps.data_limite_homologacao` | `data_transmissao + 5 anos` | Homologação tácita (Lei 9.430/96, art. 74, §5º) |
+| `processos_judiciais.prazo_compensacao` | `data_transito_julgado + 5 anos` | Prazo para compensar o indébito |
+| `perdcomp_debitos.valor_total` | `principal + multa + juros` | Total do débito |
+
+### Views
+
+| View | Conteúdo |
+| --- | --- |
+| `v_credito_saldos` | Por crédito: `total_creditado`, `total_utilizado`, **`saldo_disponivel`** (C − D) e `dias_para_prescricao` |
+| `v_prazos_criticos` | Todos os prazos em aberto num só lugar: prescrição, exigência e-CredAc, homologação tácita, manifestação de inconformidade, defesas/recursos, compensação pós-trânsito e prazos de andamento. `dias_restantes < 0` = vencido |
+
+Ambas usam `security_invoker = on` (**exige PostgreSQL 15+**), para que a RLS das
+tabelas-base valha para quem consulta — sem isso a view veria tudo.
+
+### Funções de acesso
+
+| Função | Uso |
+| --- | --- |
+| `fiscal_can_access_projeto(uuid)` | RLS de todas as tabelas com `projeto_id` |
+| `fiscal_can_access_cliente(uuid)` | RLS de `contribuintes` |
+| `fiscal_is_admin()` | Políticas de DELETE |
+| `fiscal_touch_updated_at()` | Trigger de `updated_at` |
+
+### Vínculo com a camada de tarefas
+
+`processos` ganhou `credito_id` (FK), `vinculo_tipo` e `vinculo_id`. O formulário
+de tarefa expõe o seletor **Crédito vinculado**, filtrado pelo projeto da tarefa.
+
+### Arquivos de apoio
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `src/data/fiscalDomain.js` | Catálogo de opções (espelha os CHECK do banco), cores de situação, severidade de prazo e formatadores de CNPJ, moeda, competência e CNJ |
+| `src/lib/fiscalApi.js` | Acesso a dados, carimbo de auditoria e limpeza de colunas geradas/joins antes de gravar |
+| `src/lib/fiscalExport.js` | Geração das planilhas |
+| `src/components/ui/currency-input.jsx` | Campo de moeda pt-BR que devolve `Number` |
+| `src/components/ui/kpi-card.jsx` | Card de indicador das telas fiscais |
+
+---
+
+## 16. Regras Invioláveis do Módulo Fiscal
+
+Quebrar qualquer uma destas gera dado errado ou vazamento:
+
+1. **`projeto_id` é o eixo de permissão.** Tabela fiscal nova sem `projeto_id`
+   fica invisível ou vaza dados entre clientes.
+2. **Saldo de crédito nunca é gravado em coluna.** É sempre derivado de
+   `credito_movimentos` pela view `v_credito_saldos`.
+3. **Contribuinte e projeto de habilitação, PER/DCOMP e contencioso vêm do
+   crédito**, nunca são digitados em separado — evita divergência.
+4. **Colunas geradas não vão no payload de escrita** (lista na seção 15).
+   `fiscalApi.js` já as remove; ao criar uma função nova, remova também.
+5. **`fiscalDomain.js` espelha os CHECK do banco.** Mudou a lista lá, mude o
+   CHECK na migration — e vice-versa. Divergência vira erro `23514` no insert
+   em vez de validação amigável.
+6. **Dinheiro é `numeric(18,2)` no banco e `Number` no JS.** Nunca float no
+   banco, nunca string formatada no payload.
+
+### Validações que o banco impõe (e a tela antecipa)
+
+| Regra | Onde |
+| --- | --- |
+| A partir de "Protocolado", habilitação exige número **e** data de protocolo | CHECK `habilitacoes_protocolo_check` |
+| A partir de "Protocolado", processo administrativo exige data de protocolo | CHECK `proc_adm_protocolo_check` |
+| Movimento da razão exige `valor > 0` | CHECK em `credito_movimentos` |
+| CNPJ com 14 dígitos e único | CHECK + UNIQUE em `contribuintes` |
+
+---
+
+## 17. Exportação Excel
+
+Cada tela fiscal tem botão **Exportar**, que gera um `.xlsx` do que está
+**na tela** — filtros e ordenação aplicados, não a base inteira.
+
+| Tela | Arquivo | Abas |
+| --- | --- | --- |
+| Créditos | `creditos_dd-mm-aaaa.xlsx` | Créditos |
+| e-CredAc | `habilitacoes_ecredac_…` | e-CredAc |
+| PER/DCOMP | `perdcomp_…` | PER-DCOMP + Débitos |
+| Contencioso (Administrativo) | `contencioso_administrativo_…` | Administrativo |
+| Contencioso (Judicial) | `contencioso_judicial_…` | Judicial |
+| Prazos | `prazos_…` | Prazos |
+
+**Valores monetários saem como número** com formato de célula `R$ #,##0.00` —
+nunca como texto. É o que permite somar, filtrar e dinamizar na planilha.
+Datas saem como `dd/mm/aaaa` e CNPJ formatado.
+
+---
+
+## 18. Lacunas Conhecidas Desta Documentação
+
+Funcionalidades da **camada operacional** que existem no código mas ainda não
+foram descritas em detalhe acima:
+
+| Funcionalidade | Onde está | Migration |
+| --- | --- | --- |
+| **Tarefas Recorrentes** | `RecurringTasksView.jsx`, `src/lib/recurrence.js` | `sql/2026-07-14_add_recurring_task_templates.sql` |
+| **Posse de projetos por membro** | RLS de `projetos` e `user_projetos` | `sql/2026-07-20_member_project_ownership.sql` |
+
+Resumo de cada uma:
+
+- **Tarefas Recorrentes:** um molde (`recurring_task_templates`) com frequência
+  diária/semanal/mensal/personalizada e janela de datas. A geração é **em lote no
+  momento do cadastro** — o frontend calcula as ocorrências e insere uma linha em
+  `processos` para cada uma, apontando para o molde via `parent_recurring_id`.
+  Não há cron nem serviço agendado.
+- **Posse de projetos:** admin cria clientes; membro cria projetos nos clientes a
+  que tem acesso. Projeto criado por membro é visível só ao criador, aos
+  convidados (`user_projetos`) e ao admin.
 
 ---
 
