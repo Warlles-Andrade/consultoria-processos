@@ -169,6 +169,12 @@ Levantados honestamente para quem for assumir o código:
 7. **E-mails dependem de conta Gmail** com senha de app, limitada a 100/dia.
    Para volume real, migrar para um serviço transacional.
 
+8. **O banco pausa sozinho no plano gratuito do Supabase** após 7 dias sem
+   uso. Aconteceu em 09/2026: o projeto ficou `INACTIVE`, o sistema parou de
+   responder (timeout de conexão) e foi preciso restaurar pelo painel — cerca
+   de 6 minutos até voltar, **com todos os dados intactos**. Em uso diário não
+   acontece; em produção, o plano Pro elimina a pausa.
+
 ---
 
 ## Convenções
