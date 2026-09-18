@@ -29,9 +29,23 @@ export default function apiLocal() {
       // As funções leem SUPABASE_SERVICE_ROLE_KEY, GMAIL_* etc. de process.env,
       // e o Vite só expõe as variáveis com prefixo VITE_. Carrega todas do .env
       // para process.env — apenas no processo do servidor, nunca no navegador.
+      //
+      // O Vite reinicia sozinho quando o .env muda, e é nessa hora que alguém
+      // cola a SUPABASE_SERVICE_ROLE_KEY. Por isso os valores do .env são
+      // SEMPRE reaplicados — do contrário a primeira carga (com a chave vazia)
+      // "grudaria" e a chave nova seria ignorada. Só as variáveis que já vinham
+      // do sistema operacional são preservadas; o snapshot fica em globalThis
+      // para sobreviver à reavaliação do módulo a cada reinício.
+      const doSistema = (globalThis.__apiLocalVarsDoSistema ??= new Set(Object.keys(process.env)));
+      // O loadEnv do Vite dá preferência ao que já está em process.env sobre
+      // o arquivo (com prefixo '' isso vale para TODAS as chaves). Sem limpar
+      // antes, o valor da carga anterior venceria o .env recém-editado.
+      for (const chave of Object.keys(process.env)) {
+        if (!doSistema.has(chave)) delete process.env[chave];
+      }
       const env = loadEnv(server.config.mode, server.config.root, '');
       for (const [chave, valor] of Object.entries(env)) {
-        if (process.env[chave] === undefined) process.env[chave] = valor;
+        if (!doSistema.has(chave)) process.env[chave] = valor;
       }
 
       server.middlewares.use(async (req, res, next) => {
