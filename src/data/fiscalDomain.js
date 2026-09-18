@@ -592,3 +592,66 @@ export const formatPercentual = (valor) => {
   if (Number.isNaN(n)) return '—';
   return `${n.toLocaleString('pt-BR', { maximumFractionDigits: 3 })}%`;
 };
+
+// =====================================================================
+// PER/DCOMP por crédito
+// =====================================================================
+
+/** 24 dígitos → '12345.67890.010126.1.3.15-1234' (padrão do PER/DCOMP Web). */
+export const formatNumeroPerdcomp = (numero) => {
+  const d = onlyDigits(numero);
+  if (d.length !== 24) return numero || '—';
+  return `${d.slice(0, 5)}.${d.slice(5, 10)}.${d.slice(10, 16)}.${d[16]}.${d[17]}.${d.slice(18, 20)}-${d.slice(20)}`;
+};
+
+/** '2025-09-01' → '09/2025' */
+export const formatMesAno = (iso) => {
+  if (!iso) return '—';
+  const [a, m] = String(iso).split('-');
+  return m && a ? `${m}/${a}` : String(iso);
+};
+
+/** Rótulo curto de cada tipo de crédito, para abas e badges. */
+export const tipoCreditoCurto = {
+  'Pagamento Indevido ou a Maior': 'Pagto. indevido',
+  'Contribuição Previdenciária Indevida ou a Maior': 'Contrib. prev. indevida',
+  'Retenção - Lei nº 9.711/98': 'Retenção INSS',
+  'Salário-Família e Salário-Maternidade': 'Sal.-família/maternidade',
+  'Saldo Negativo de IRPJ': 'Saldo neg. IRPJ',
+  'Saldo Negativo de CSLL': 'Saldo neg. CSLL',
+  'Ressarcimento de IPI': 'IPI',
+  'Ressarcimento de PIS/Pasep Não Cumulativo': 'PIS',
+  'Ressarcimento de Cofins Não Cumulativa': 'COFINS',
+  'Crédito Oriundo de Ação Judicial': 'Ação judicial',
+  'Outro': 'Outro',
+};
+
+export const tiposCreditoPerdcomp = Object.keys(tipoCreditoCurto);
+
+export const situacaoDocumentoDcomp = ['ativa', 'retificadora', 'retificada', 'cancelada'];
+
+export const tiposItemComposicao = [
+  'Nota fiscal com retenção', 'DARF', 'GPS', 'DCTFWeb', 'Estimativa mensal',
+  'Retenção na fonte', 'Nota fiscal de entrada', 'Decisão judicial', 'Outro',
+];
+
+/** Cor da fase na Receita (tag vinda de perdcompRegras.fase). */
+export const corFase = {
+  transmitida: 'bg-blue-100 text-blue-800 border-blue-300',
+  analise: 'bg-amber-100 text-amber-800 border-amber-300',
+  deferida: 'bg-green-100 text-green-800 border-green-300',
+  homologada: 'bg-green-100 text-green-800 border-green-300',
+  paga: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  parcial: 'bg-amber-100 text-amber-800 border-amber-300',
+  indeferida: 'bg-red-100 text-red-800 border-red-300',
+  nao: 'bg-red-100 text-red-800 border-red-300',
+  cancelada: 'bg-gray-100 text-gray-600 border-gray-300',
+  sem: 'bg-gray-100 text-gray-600 border-gray-300',
+};
+
+export const corSituacaoDocumento = {
+  ativa: 'bg-green-100 text-green-800 border-green-300',
+  retificadora: 'bg-blue-100 text-blue-800 border-blue-300',
+  retificada: 'bg-gray-100 text-gray-600 border-gray-300',
+  cancelada: 'bg-gray-100 text-gray-500 border-gray-300 line-through',
+};

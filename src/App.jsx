@@ -18,7 +18,7 @@ import RecurringTasksView from '@/components/RecurringTasksView';
 import ContribuintesManagement from '@/components/ContribuintesManagement';
 import CreditosView from '@/components/CreditosView';
 import HabilitacoesView from '@/components/HabilitacoesView';
-import PerdcompsView from '@/components/PerdcompsView';
+import PerdcompControleView from '@/components/PerdcompControleView';
 import ContenciosoView from '@/components/ContenciosoView';
 import PrazosView from '@/components/PrazosView';
 import FiscalDashboard from '@/components/FiscalDashboard';
@@ -1497,11 +1497,10 @@ function App() {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <PerdcompsView
+                  <PerdcompControleView
                     usuario={usuario}
                     userProfile={userProfile}
-                    responsaveis={responsaveisComAdmin}
-                    onRefresh={() => fetchData(false, false)}
+                    projetos={isAdminUser ? projetos : projetos.filter(p => userProjetoIds.includes(p.id))}
                   />
                 </motion.div>
               )}

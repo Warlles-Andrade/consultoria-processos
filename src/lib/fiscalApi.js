@@ -209,63 +209,16 @@ export const excluirHabilitacao = async (id) =>
 // PER/DCOMP
 // ---------------------------------------------------------------------
 
-const PERDCOMP_SELECT = `
-  *,
-  credito:creditos(id, codigo, titulo, tributo),
-  contribuinte:contribuintes(id, razao_social, cnpj),
-  projeto:projetos(id, nome)
-`;
-
-export const listarPerdcomps = async () =>
+/**
+ * Saldo de cada crédito PER/DCOMP (v_perdcomp_saldos). O controle completo
+ * — versões, DCOMPs, eventos, Selic — fica em src/lib/perdcompApi.js.
+ */
+export const listarSaldosPerdcomp = async () =>
   unwrap(
     await supabase
-      .from('perdcomps')
-      .select(PERDCOMP_SELECT)
-      .order('data_transmissao', { ascending: false })
-  );
-
-export const salvarPerdcomp = async (dados, usuario, userProfile) => {
-  const isNew = !dados.id;
-  const payload = limpar({ ...dados, ...carimbo(usuario, userProfile, isNew) });
-  if (isNew) delete payload.id;
-  delete payload.data_limite_homologacao; // coluna gerada
-  delete payload.credito;
-  delete payload.contribuinte;
-  delete payload.projeto;
-  delete payload.debitos;
-
-  return unwrap(
-    await supabase
-      .from('perdcomps')
-      .upsert(payload)
-      .select(PERDCOMP_SELECT)
-      .single()
-  );
-};
-
-export const excluirPerdcomp = async (id) =>
-  unwrap(await supabase.from('perdcomps').delete().eq('id', id).select());
-
-export const listarDebitosPerdcomp = async (perdcompId) =>
-  unwrap(
-    await supabase
-      .from('perdcomp_debitos')
+      .from('v_perdcomp_saldos')
       .select('*')
-      .eq('perdcomp_id', perdcompId)
-      .order('periodo_apuracao', { ascending: true })
   );
-
-export const salvarDebitoPerdcomp = async (dados) => {
-  const payload = limpar({ ...dados });
-  if (!payload.id) delete payload.id;
-  delete payload.valor_total; // coluna gerada
-  return unwrap(
-    await supabase.from('perdcomp_debitos').upsert(payload).select().single()
-  );
-};
-
-export const excluirDebitoPerdcomp = async (id) =>
-  unwrap(await supabase.from('perdcomp_debitos').delete().eq('id', id).select());
 
 // ---------------------------------------------------------------------
 // Contencioso administrativo

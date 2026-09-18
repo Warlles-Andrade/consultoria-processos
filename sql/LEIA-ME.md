@@ -2,12 +2,14 @@
 
 ## Estado atual
 
-**Todas as migrations abaixo já foram aplicadas** no projeto Supabase
-`processos_bd` (`xiafwlpnsoyklutxsvdy`, região sa-east-1, PostgreSQL 17.6)
-em 31/08/2026.
+**As migrations 1 a 9 já foram aplicadas** no projeto Supabase
+`processos_bd` (`xiafwlpnsoyklutxsvdy`, região sa-east-1, PostgreSQL 17.6):
+1–7 em 31/08/2026, 8–9 em 18/09/2026. A **10 é opcional e ainda não foi
+aplicada** (ver abaixo).
 
-Resultado verificado no banco: **21 tabelas**, 2 views, 13 funções,
-64 políticas de RLS (ativa em todas as 21 tabelas) e 1 bucket de Storage.
+Resultado verificado no banco em 18/09/2026: **28 tabelas**, 3 views,
+90 políticas de RLS (ativa em todas as tabelas) e 1 bucket de Storage.
+Depois da migration 10: 26 tabelas e 84 políticas.
 
 Os arquivos ficam aqui para reprodutibilidade — recriar o sistema em outro
 projeto Supabase é rodar esta lista na ordem.
@@ -21,6 +23,16 @@ projeto Supabase é rodar esta lista na ordem.
 | 3 | `2026-08-28_01_fiscal_base.sql` | `contribuintes`, `creditos`, `credito_movimentos`, `andamentos` |
 | 4 | `2026-08-28_02_fiscal_habilitacao_perdcomp.sql` | `habilitacoes` (CAT 207/83), `perdcomps`, `perdcomp_debitos` |
 | 5 | `2026-08-28_03_fiscal_contencioso_e_views.sql` | `processos_administrativos`, `processos_judiciais`, vínculo `processos.credito_id`, views `v_credito_saldos` e `v_prazos_criticos` |
+| 6 | `2026-08-31_02_endurecimento_funcoes.sql` | `search_path` fixo nas funções `SECURITY DEFINER` e revogação de execução para `anon` (apontado pelo linter do Supabase) |
+| 7 | `2026-08-31_03_bootstrap_primeiro_admin.sql` | O primeiro usuário vira `adm` enquanto não existir nenhum administrador; depois a regra se desliga |
+| 8 | `2026-09-18_01_perdcomp_conta_corrente.sql` | Controle PER/DCOMP por crédito: `perdcomp_creditos`, `perdcomp_composicao`, `perdcomp_per_versoes`, `perdcomp_dcomps`, `perdcomp_dcomp_debitos`, `perdcomp_eventos`, `selic_mensal` e a view `v_perdcomp_saldos` |
+| 9 | `2026-09-18_02_perdcomp_prazos_modelo_novo.sql` | Recria `v_prazos_criticos` com os prazos do controle novo (homologação tácita e manifestação de inconformidade, derivados das DCOMPs e dos eventos) |
+| 10 | `2026-09-18_03_perdcomp_remove_modelo_antigo.sql` | **Opcional.** Apaga `perdcomps` e `perdcomp_debitos` (modelo antigo, sem uso). Só executa se ambas estiverem vazias |
+
+> **Migration 10:** as tabelas antigas estavam vazias em 18/09/2026 e a
+> aplicação não as usa mais. A remoção ficou para decisão da equipe por ser
+> irreversível; mantê-las não quebra nada. Num projeto novo, pode pular a
+> 10 — ou aplicá-la logo depois da 9.
 
 > A numeração dos arquivos fiscais (28/08) é anterior à da base (31/08) porque
 > eles foram escritos antes — mas **a base tem que vir primeiro**, já que as
@@ -74,10 +86,10 @@ update user_profiles
 ```sql
 select
   (select count(*) from information_schema.tables
-    where table_schema='public' and table_type='BASE TABLE')  as tabelas,      -- 21
+    where table_schema='public' and table_type='BASE TABLE')  as tabelas,      -- 28 (26 após a 10)
   (select count(*) from information_schema.views
-    where table_schema='public')                              as views,        -- 2
-  (select count(*) from pg_policies where schemaname='public') as policies,    -- 64
+    where table_schema='public')                              as views,        -- 3
+  (select count(*) from pg_policies where schemaname='public') as policies,    -- 90 (84 após a 10)
   (select count(*) from storage.buckets)                       as buckets;     -- 1
 ```
 
@@ -86,8 +98,9 @@ select
 1. **Clientes** → **Projetos** → **Usuários** (camada operacional)
 2. **Contribuintes** (CNPJ)
 3. **Créditos**
-4. **e-CredAc**, **PER/DCOMP** e **Contencioso** — todos partem de um crédito
-   ou contribuinte já cadastrado
+4. **e-CredAc** e **Contencioso** — partem de um crédito ou contribuinte já cadastrado
+5. **PER/DCOMP** — parte do contribuinte: importe o controle (HTML/JSON), leia
+   o PDF com IA ou registre o PER à mão. O crédito PER/DCOMP nasce do PER.
 
 O contribuinte precisa estar num cliente que tenha ao menos um projeto: é o
 projeto que define quem enxerga o quê, tanto nas tarefas quanto no fiscal.

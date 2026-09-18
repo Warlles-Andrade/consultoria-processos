@@ -30,6 +30,7 @@
   "homepage": "https://github.com/JamesHenrique/web_consultoriaV2#readme",
   "description": "",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "@babel/generator": "^7.28.0",
     "@babel/types": "^7.28.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",

@@ -7,7 +7,8 @@
  */
 
 import * as XLSX from 'xlsx';
-import { formatCNPJ, formatCNJ, onlyDigits } from '@/data/fiscalDomain';
+import { formatCNPJ, formatCNJ, onlyDigits, formatNumeroPerdcomp, tipoCreditoCurto } from '@/data/fiscalDomain';
+import * as R from '@/lib/perdcompRegras';
 
 const FMT_MOEDA = 'R$ #,##0.00';
 const FMT_PCT = '0.000"%"';
@@ -186,95 +187,205 @@ export const exportarHabilitacoes = (habilitacoes) => {
 };
 
 // ---------------------------------------------------------------------
-// PER/DCOMP (com aba de débitos)
+// Controle PER/DCOMP por crédito (conta-corrente)
 // ---------------------------------------------------------------------
 
-const COLUNAS_PERDCOMP = [
-  { titulo: 'Número', largura: 26 },
-  { titulo: 'Tipo', largura: 16 },
-  { titulo: 'Documento', largura: 13 },
-  { titulo: 'Crédito', largura: 36 },
-  { titulo: 'Contribuinte', largura: 32 },
-  { titulo: 'CNPJ', largura: 20 },
-  { titulo: 'Transmissão', largura: 14 },
-  { titulo: 'Homologação tácita', largura: 19 },
-  { titulo: 'Apuração inicial', largura: 16 },
-  { titulo: 'Apuração final', largura: 16 },
-  { titulo: 'Crédito original', largura: 18, formato: 'moeda' },
-  { titulo: 'Crédito atualizado', largura: 18, formato: 'moeda' },
-  { titulo: 'Compensado', largura: 18, formato: 'moeda' },
-  { titulo: 'Deferido', largura: 18, formato: 'moeda' },
-  { titulo: 'Glosado', largura: 18, formato: 'moeda' },
-  { titulo: 'Situação', largura: 22 },
-  { titulo: 'Processo administrativo', largura: 24 },
-  { titulo: 'Ciência do despacho', largura: 18 },
-  { titulo: 'Prazo de manifestação', largura: 20 },
-  { titulo: 'Responsável', largura: 22 },
-  { titulo: 'Observações', largura: 40 },
+/** Timestamp do e-CAC → dd/mm/aaaa no horário de Brasília. */
+const dtBr = (ts) => (ts
+  ? new Date(ts).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  : '');
+const mesAno = (iso) => (iso ? `${String(iso).slice(5, 7)}/${String(iso).slice(0, 4)}` : '');
+
+const COLUNAS_CTRL_CREDITOS = [
+  { titulo: 'Competência', largura: 12 },
+  { titulo: 'Tipo de crédito', largura: 34 },
+  { titulo: 'ID do crédito (RFB)', largura: 30 },
+  { titulo: 'PER original', largura: 30 },
+  { titulo: 'Transmissão do PER', largura: 18 },
+  { titulo: 'Fase do pedido', largura: 22 },
+  { titulo: 'Valor do crédito', largura: 18, formato: 'moeda' },
+  { titulo: 'Composição lançada', largura: 18, formato: 'moeda' },
+  { titulo: 'Utilizado em DCOMP', largura: 18, formato: 'moeda' },
+  { titulo: 'Restituição paga', largura: 18, formato: 'moeda' },
+  { titulo: 'Saldo', largura: 18, formato: 'moeda' },
+  { titulo: 'Selic acumulada', largura: 14, formato: 'pct' },
+  { titulo: 'Saldo corrigido', largura: 18, formato: 'moeda' },
+  { titulo: 'DCOMPs', largura: 9 },
+  { titulo: 'Alertas', largura: 60 },
 ];
 
-const COLUNAS_DEBITOS = [
-  { titulo: 'PER/DCOMP', largura: 26 },
-  { titulo: 'Código da receita', largura: 17 },
-  { titulo: 'Denominação', largura: 40 },
-  { titulo: 'Período de apuração', largura: 19 },
-  { titulo: 'Vencimento', largura: 14 },
+const COLUNAS_CTRL_EXTRATO = [
+  { titulo: 'Competência do crédito', largura: 14 },
+  { titulo: 'Tipo de crédito', largura: 22 },
+  { titulo: 'DCOMP', largura: 30 },
+  { titulo: 'Transmissão', largura: 13 },
+  { titulo: 'Situação do documento', largura: 14 },
+  { titulo: 'Fase na RFB', largura: 22 },
+  { titulo: 'Crédito declarado na entrega', largura: 20, formato: 'moeda' },
+  { titulo: 'Saldo antes', largura: 18, formato: 'moeda' },
+  { titulo: 'Consumido', largura: 18, formato: 'moeda' },
+  { titulo: 'Saldo depois', largura: 18, formato: 'moeda' },
+  { titulo: 'Divergência', largura: 16, formato: 'moeda' },
+  { titulo: 'Selic declarada', largura: 13, formato: 'pct' },
+  { titulo: 'Selic pela regra', largura: 13, formato: 'pct' },
+  { titulo: 'Total dos débitos', largura: 18, formato: 'moeda' },
+];
+
+const COLUNAS_CTRL_PER = [
+  { titulo: 'PER', largura: 30 },
+  { titulo: 'Competência do crédito', largura: 14 },
+  { titulo: 'Tipo de crédito', largura: 22 },
+  { titulo: 'Versão', largura: 12 },
+  { titulo: 'Retifica', largura: 30 },
+  { titulo: 'Vigente', largura: 9 },
+  { titulo: 'Transmissão', largura: 13 },
+  { titulo: 'Valor pedido', largura: 18, formato: 'moeda' },
+  { titulo: 'Recibo', largura: 22 },
+];
+
+const COLUNAS_CTRL_DEBITOS = [
+  { titulo: 'DCOMP', largura: 30 },
+  { titulo: 'Situação do documento', largura: 14 },
+  { titulo: 'Código da receita', largura: 16 },
+  { titulo: 'Período de apuração', largura: 14 },
+  { titulo: 'Vencimento', largura: 13 },
   { titulo: 'Principal', largura: 16, formato: 'moeda' },
   { titulo: 'Multa', largura: 16, formato: 'moeda' },
   { titulo: 'Juros', largura: 16, formato: 'moeda' },
   { titulo: 'Total', largura: 16, formato: 'moeda' },
-  { titulo: 'Situação', largura: 22 },
+];
+
+const COLUNAS_CTRL_COMPOSICAO = [
+  { titulo: 'Competência do crédito', largura: 14 },
+  { titulo: 'Tipo', largura: 24 },
+  { titulo: 'Documento', largura: 18 },
+  { titulo: 'CNPJ', largura: 20 },
+  { titulo: 'Nome', largura: 34 },
+  { titulo: 'Data', largura: 12 },
+  { titulo: 'Período de apuração', largura: 14 },
+  { titulo: 'Código da receita', largura: 14 },
+  { titulo: 'Valor', largura: 16, formato: 'moeda' },
+];
+
+const COLUNAS_CTRL_ALERTAS = [
+  { titulo: 'Nível', largura: 9 },
+  { titulo: 'Competência do crédito', largura: 14 },
+  { titulo: 'Tipo de crédito', largura: 22 },
+  { titulo: 'Alerta', largura: 110 },
 ];
 
 /**
- * @param {Array} perdcomps
- * @param {Array} debitos - opcional; cada item precisa de perdcomp_id
+ * Exporta o controle de um contribuinte (já filtrado pela tela) com as
+ * mesmas contas da tela — tudo vem de perdcompRegras.
+ * @param ctx { creditos, perVersoes, dcomps, debitos, eventos, composicao, selic }
+ * @param contribuinte { razao_social, cnpj }
  */
-export const exportarPerdcomps = (perdcomps, debitos = []) => {
-  const registros = perdcomps.map((p) => ({
-    'Número': p.numero || '',
-    'Tipo': p.tipo || '',
-    'Documento': p.tipo_documento || '',
-    'Crédito': p.credito ? `${p.credito.codigo || ''} ${p.credito.titulo || ''}`.trim() : '',
-    'Contribuinte': p.contribuinte?.razao_social || '',
-    'CNPJ': cnpj(p.contribuinte?.cnpj),
-    'Transmissão': dt(p.data_transmissao),
-    'Homologação tácita': dt(p.data_limite_homologacao),
-    'Apuração inicial': dt(p.periodo_apuracao_inicio),
-    'Apuração final': dt(p.periodo_apuracao_fim),
-    'Crédito original': num(p.valor_credito_original),
-    'Crédito atualizado': num(p.valor_credito_atualizado),
-    'Compensado': num(p.valor_compensado),
-    'Deferido': num(p.valor_deferido),
-    'Glosado': num(p.valor_glosado),
-    'Situação': p.situacao || '',
-    'Processo administrativo': p.numero_processo_administrativo || '',
-    'Ciência do despacho': dt(p.data_ciencia_despacho),
-    'Prazo de manifestação': dt(p.prazo_manifestacao),
-    'Responsável': p.responsavel_nome || '',
-    'Observações': p.observacoes || '',
+export const exportarControlePerdcomp = (ctx, contribuinte) => {
+  const { creditos, perVersoes, dcomps, debitos, eventos, composicao, selic } = ctx;
+  const ids = new Set(creditos.map((c) => c.id));
+  const porId = new Map(creditos.map((c) => [c.id, c]));
+  const curto = (c) => tipoCreditoCurto[c?.tipo_credito] || c?.tipo_credito || '';
+  const minhasDcomps = dcomps.filter((d) => ids.has(d.perdcomp_credito_id));
+  const dcompPorId = new Map(minhasDcomps.map((d) => [d.id, d]));
+
+  const linhasCreditos = creditos.map((c) => {
+    const s = R.saldoCorrigido(c, dcomps, selic);
+    const itens = composicao.filter((x) => x.perdcomp_credito_id === c.id);
+    return {
+      'Competência': mesAno(c.competencia),
+      'Tipo de crédito': c.tipo_credito,
+      'ID do crédito (RFB)': formatNumeroPerdcomp(c.id_credito_rfb),
+      'PER original': c.numero_per_original ? formatNumeroPerdcomp(c.numero_per_original) : '',
+      'Transmissão do PER': dtBr(c.data_transmissao),
+      'Fase do pedido': c.numero_per_original ? R.fase(c.numero_per_original, 'PER', eventos).rotulo : '',
+      'Valor do crédito': num(c.valor_credito),
+      'Composição lançada': itens.length ? R.round2(itens.reduce((t, x) => t + Number(x.valor || 0), 0)) : null,
+      'Utilizado em DCOMP': s.utilizado,
+      'Restituição paga': c.numero_per_original ? R.valorPago(c.numero_per_original, eventos) || null : null,
+      'Saldo': s.saldo,
+      'Selic acumulada': s.percentual,
+      'Saldo corrigido': s.valor,
+      'DCOMPs': minhasDcomps.filter((d) => d.perdcomp_credito_id === c.id).length,
+      'Alertas': R.alertas(c, ctx).map((a) => a.texto).join(' | '),
+    };
+  });
+
+  const linhasExtrato = creditos.flatMap((c) => R.extrato(c, dcomps).map((l) => ({
+    'Competência do crédito': mesAno(c.competencia),
+    'Tipo de crédito': curto(c),
+    'DCOMP': formatNumeroPerdcomp(l.numero),
+    'Transmissão': dtBr(l.data_transmissao),
+    'Situação do documento': l.situacao_documento,
+    'Fase na RFB': R.fase(l.numero, 'DCOMP', eventos).rotulo,
+    'Crédito declarado na entrega': num(l.credito_informado_entrega),
+    'Saldo antes': l.saldoAnterior,
+    'Consumido': l.consumido || null,
+    'Saldo depois': l.saldoApos,
+    'Divergência': l.divergencia != null && Math.abs(l.divergencia) > 0.01 ? l.divergencia : null,
+    'Selic declarada': num(l.selic_acumulada),
+    'Selic pela regra': R.indiceSelicDcomp(l, c, dcomps, selic).percentual,
+    'Total dos débitos': num(l.total_debitos),
+  })));
+
+  const linhasPer = perVersoes.filter((v) => ids.has(v.perdcomp_credito_id)).map((v) => {
+    const c = porId.get(v.perdcomp_credito_id);
+    return {
+      'PER': formatNumeroPerdcomp(v.numero),
+      'Competência do crédito': mesAno(c?.competencia),
+      'Tipo de crédito': curto(c),
+      'Versão': v.numero_anterior ? 'Retificadora' : 'Original',
+      'Retifica': v.numero_anterior ? formatNumeroPerdcomp(v.numero_anterior) : '',
+      'Vigente': v.vigente ? 'Sim' : 'Não',
+      'Transmissão': dtBr(v.data_transmissao),
+      'Valor pedido': num(v.valor_pedido),
+      'Recibo': v.numero_recibo || '',
+    };
+  });
+
+  const linhasDebitos = debitos.filter((x) => dcompPorId.has(x.dcomp_id)).map((x) => {
+    const d = dcompPorId.get(x.dcomp_id);
+    return {
+      'DCOMP': formatNumeroPerdcomp(d.numero),
+      'Situação do documento': d.situacao_documento,
+      'Código da receita': x.codigo_receita || '',
+      'Período de apuração': mesAno(x.periodo_apuracao),
+      'Vencimento': dt(x.vencimento),
+      'Principal': num(x.principal),
+      'Multa': num(x.multa),
+      'Juros': num(x.juros),
+      'Total': num(x.total),
+    };
+  });
+
+  const linhasComposicao = composicao.filter((x) => ids.has(x.perdcomp_credito_id)).map((x) => ({
+    'Competência do crédito': mesAno(porId.get(x.perdcomp_credito_id)?.competencia),
+    'Tipo': x.tipo_item,
+    'Documento': x.documento || '',
+    'CNPJ': cnpj(x.cnpj_relacionado),
+    'Nome': x.nome_relacionado || '',
+    'Data': dt(x.data_documento),
+    'Período de apuração': mesAno(x.periodo_apuracao),
+    'Código da receita': x.codigo_receita || '',
+    'Valor': num(x.valor),
   }));
 
-  const abas = [{ nome: 'PER-DCOMP', ws: criarAba(registros, COLUNAS_PERDCOMP) }];
+  const linhasAlertas = creditos.flatMap((c) => R.alertas(c, ctx).map((a) => ({
+    'Nível': a.nivel === 'grave' ? 'GRAVE' : 'Conferir',
+    'Competência do crédito': mesAno(c.competencia),
+    'Tipo de crédito': curto(c),
+    'Alerta': a.texto,
+  })));
 
-  if (debitos.length > 0) {
-    const numeroPorId = new Map(perdcomps.map((p) => [p.id, p.numero]));
-    const linhasDebito = debitos.map((d) => ({
-      'PER/DCOMP': numeroPorId.get(d.perdcomp_id) || '',
-      'Código da receita': d.codigo_receita || '',
-      'Denominação': d.denominacao || '',
-      'Período de apuração': dt(d.periodo_apuracao),
-      'Vencimento': dt(d.vencimento),
-      'Principal': num(d.valor_principal),
-      'Multa': num(d.valor_multa),
-      'Juros': num(d.valor_juros),
-      'Total': num(d.valor_total),
-      'Situação': d.situacao || '',
-    }));
-    abas.push({ nome: 'Débitos', ws: criarAba(linhasDebito, COLUNAS_DEBITOS) });
-  }
+  const abas = [
+    { nome: 'Créditos', ws: criarAba(linhasCreditos, COLUNAS_CTRL_CREDITOS) },
+    { nome: 'Conta-corrente', ws: criarAba(linhasExtrato, COLUNAS_CTRL_EXTRATO) },
+    { nome: 'PER', ws: criarAba(linhasPer, COLUNAS_CTRL_PER) },
+    { nome: 'Débitos DCOMP', ws: criarAba(linhasDebitos, COLUNAS_CTRL_DEBITOS) },
+  ];
+  if (linhasComposicao.length) abas.push({ nome: 'Composição', ws: criarAba(linhasComposicao, COLUNAS_CTRL_COMPOSICAO) });
+  if (linhasAlertas.length) abas.push({ nome: 'Alertas', ws: criarAba(linhasAlertas, COLUNAS_CTRL_ALERTAS) });
 
-  return baixar(abas, 'perdcomp');
+  return baixar(abas, `perdcomp_${onlyDigits(contribuinte?.cnpj) || 'controle'}`);
 };
 
 // ---------------------------------------------------------------------

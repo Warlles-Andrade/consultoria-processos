@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { getPublicErrorMessage } from '@/lib/errorMessages';
 import {
-  listarCreditosComSaldo, listarPerdcomps, listarPrazosCriticos,
+  listarCreditosComSaldo, listarSaldosPerdcomp, listarPrazosCriticos,
   listarProcessosAdministrativos, listarProcessosJudiciais,
 } from '@/lib/fiscalApi';
 import {
@@ -189,7 +189,7 @@ const FiscalDashboard = ({ onNavigate }) => {
     try {
       const [c, p, pr, a, j] = await Promise.all([
         listarCreditosComSaldo(),
-        listarPerdcomps(),
+        listarSaldosPerdcomp(),
         listarPrazosCriticos(),
         listarProcessosAdministrativos(),
         listarProcessosJudiciais(),
@@ -215,7 +215,7 @@ const FiscalDashboard = ({ onNavigate }) => {
     const levantado = creditos.reduce((s, c) => s + Number(c.valor_levantado || 0), 0);
     const homologado = creditos.reduce((s, c) => s + Number(c.valor_homologado || 0), 0);
     const saldo = creditos.reduce((s, c) => s + Number(c.saldo?.saldo_disponivel || 0), 0);
-    const compensado = perdcomps.reduce((s, p) => s + Number(p.valor_compensado || 0), 0);
+    const compensado = perdcomps.reduce((s, p) => s + Number(p.utilizado || 0), 0);
     const emDiscussao = admins
       .filter((p) => !['Encerrado', 'Arquivado', 'Prescrito'].includes(p.situacao))
       .reduce((s, p) => s + Number(p.valor_autuado || 0), 0);
@@ -316,7 +316,7 @@ const FiscalDashboard = ({ onNavigate }) => {
               detalhe="Apurado pela razão" icone={Wallet}
               cor="border-indigo-200 bg-indigo-50 text-indigo-800" delay={0.1} />
             <KpiCard titulo="Compensado" valor={formatMoedaCompacta(totais.compensado)}
-              detalhe={`${perdcomps.length} PER/DCOMP`} icone={ArrowLeftRight}
+              detalhe={`${perdcomps.reduce((s, p) => s + Number(p.dcomps_que_consomem || 0), 0)} DCOMP(s) · ${perdcomps.length} crédito(s)`} icone={ArrowLeftRight}
               cor="border-blue-200 bg-blue-50 text-blue-800" delay={0.15} />
             <KpiCard titulo="Em discussão" valor={formatMoedaCompacta(totais.emDiscussao)}
               detalhe={`${admins.length} processo(s) · ${judiciaisTransitados} transitado(s)`}

@@ -1008,9 +1008,18 @@ Contribuinte (CNPJ)
                 │
                 ├── Razão do crédito ......... movimentos C/D → saldo disponível
                 ├── Habilitação .............. e-CredAc: CAT 207/2009 e CAT 83/2009
-                ├── PER/DCOMP ................ federal, com débitos compensados
                 ├── Processo administrativo .. DRJ, CARF, CSRF, TIT-SP, TAT/MS…
                 └── Processo judicial ........ CNJ, trânsito em julgado, habilitação RFB
+
+Contribuinte (CNPJ)
+      │
+      └── Crédito PER/DCOMP (ID da RFB = nº do PER original)
+                │
+                ├── Composição ............... notas, DARF, GPS que formam o valor
+                ├── PER ...................... original + retificadores (1 vigente)
+                ├── DCOMPs ................... conta-corrente: cada uma consome o saldo
+                │     └── Débitos compensados
+                └── Eventos .................. fase na Receita (último evento)
 ```
 
 Toda entidade fiscal carrega `projeto_id` e usa a **mesma regra de acesso das
@@ -1018,9 +1027,9 @@ tarefas**: usuário ativo E (admin OU com acesso ao projeto).
 
 ### Pré-requisito de instalação
 
-As tabelas são criadas por 3 migrations que precisam ser aplicadas **em ordem**
-no SQL Editor do Supabase. O passo a passo está em **`sql/LEIA-ME.md`**.
-Enquanto não forem aplicadas, as telas fiscais abrem mas não gravam.
+As tabelas são criadas pelas migrations listadas, **em ordem**, em
+**`sql/LEIA-ME.md`** (já aplicadas no projeto `processos_bd`).
+Sem elas, as telas fiscais abrem mas não gravam.
 
 ---
 
@@ -1033,7 +1042,7 @@ Barra lateral, seção **Fiscal / Jurídico**:
 | **Painel Fiscal** | `FiscalDashboard.jsx` | 5 números-chave (levantado, homologado, saldo, compensado, em discussão), faixa de prazos por severidade e 4 gráficos: valor por tributo, créditos por situação, saldo por contribuinte e composição por esfera |
 | **Créditos** | `CreditosView.jsx` | Lista com KPIs e filtros por contribuinte, situação, tributo e esfera |
 | **e-CredAc** | `HabilitacoesView.jsx` | Pedidos CAT 207/2009 e CAT 83/2009, com prazo de resposta a exigência |
-| **PER/DCOMP** | `PerdcompsView.jsx` | Documentos federais, com homologação tácita e débitos compensados |
+| **PER/DCOMP** | `PerdcompControleView.jsx` | Controle por contribuinte, com abas por tipo de crédito (Retenção INSS, PIS, COFINS e demais). Dentro de cada tipo: **Créditos** (valor, utilizado, saldo, saldo corrigido pela Selic), **PER — pedidos** (versões, vigente, fase), **DCOMP — compensações** (crédito utilizado, débitos, fase, homologação tácita) e **Alertas e prazos**. Botões: Importar controle, Ler PDF com IA, Exportar, + PER, + DCOMP |
 | **Contencioso** | `ContenciosoView.jsx` | Abas Administrativo e Judicial, cada uma com KPIs e filtros próprios |
 | **Prazos** | `PrazosView.jsx` | Todos os prazos legais em uma lista, do mais urgente ao menos |
 
@@ -1047,7 +1056,9 @@ validação de dígitos, IE/IM, UF, regime tributário e posto fiscal.
 | `CreditoForm.jsx` | Escolher o tributo já posiciona a esfera; o projeto fica restrito ao cliente do contribuinte |
 | `CreditoDetailModal.jsx` | Abas Dados, **Razão** (lançamentos C/D com saldo recalculado) e Andamentos (linha do tempo com prazo fatal) |
 | `HabilitacaoForm.jsx` | A modalidade é filtrada pelo regime; contribuinte e projeto vêm do crédito |
-| `PerdcompForm.jsx` | Débitos compensados editados na mesma tela; havendo débitos, o valor compensado passa a ser a soma deles |
+| `PerdcompCreditoDetalhe.jsx` | Abas **Conta-corrente** (cada DCOMP com saldo antes/depois, divergência entre o crédito declarado e o apurado, Selic declarada × regra do manual, débitos), **Composição** (inclusão/exclusão de documentos com conferência da soma), **Pedido e versões**, **Selic** (regra aplicada e meses faltantes) e **Eventos** (registrar ciência, despacho, homologação, pagamento…) |
+| `PerdcompDocumentoForm.jsx` | Registrar PER (original ou retificador) ou DCOMP (original ou retificadora) com débitos. Mostra em tempo real o que **bloqueia** a gravação e o que só **avisa** (saldo insuficiente, crédito declarado divergente, soma de débitos). É também a tela de revisão da leitura por IA |
+| `PerdcompImportarDialog.jsx` | Importa o HTML/JSON do controle da equipe: prévia, casa o CNPJ com o contribuinte, pede o projeto e grava. Reimportar atualiza o que veio do e-CAC e preserva o que foi lançado à mão |
 | `ProcessoAdmForm.jsx` | Órgão é campo livre com sugestões por esfera/UF (`datalist`) — tribunais estaduais mudam e não cabem em lista fixa |
 | `ProcessoJudicialForm.jsx` | Número CNJ formatado, marcos processuais e bloco de habilitação prévia na RFB |
 
@@ -1066,7 +1077,7 @@ Aplicada em todas as telas, calculada sobre os dias restantes:
 
 ## 15. Estrutura de Dados Fiscal
 
-Migrations em `sql/2026-08-28_0{1,2,3}_*.sql`.
+Migrations em `sql/2026-08-28_0{1,2,3}_*.sql` e, para o controle PER/DCOMP, `sql/2026-09-18_0{1,2,3}_*.sql`.
 
 ### Tabelas
 
@@ -1076,8 +1087,13 @@ Migrations em `sql/2026-08-28_0{1,2,3}_*.sql`.
 | `creditos` | O levantamento | `codigo` (auto `CRD-ano-0000`), `tributo`, `esfera`, `origem`, `valor_levantado`, `valor_homologado`, `data_base_prescricao`, **`data_limite_prescricao`** (gerada) |
 | `credito_movimentos` | Razão do crédito | `natureza` (`C` soma / `D` subtrai), `tipo`, `valor`, `origem_tipo`/`origem_id` (referência polimórfica) |
 | `habilitacoes` | e-CredAc | `regime` (CAT 207/2009, CAT 83/2009), `modalidade`, `numero_protocolo`, `valor_pleiteado`/`autorizado`/`glosado`, `prazo_resposta` |
-| `perdcomps` | Federal | `numero` (UNIQUE), `tipo`, `data_transmissao`, **`data_limite_homologacao`** (gerada), `prazo_manifestacao`, `retificador_de_id` |
-| `perdcomp_debitos` | Débitos de uma DCOMP | `codigo_receita`, `valor_principal`/`multa`/`juros`, **`valor_total`** (gerada) |
+| `perdcomp_creditos` | Crédito do PER/DCOMP | `id_credito_rfb` (UNIQUE), `competencia`, `tipo_credito`, `valor_credito`, `numero_per_original`, `termo_inicial_correcao`, `forma_recebimento`, `origem` (MANUAL/ECAC/JSON/IA) |
+| `perdcomp_composicao` | Documentos que formam o crédito | `tipo_item`, `documento`, `cnpj_relacionado`, `data_documento`, `periodo_apuracao`, `valor` |
+| `perdcomp_per_versoes` | PER original e retificadores | `numero` (UNIQUE), `numero_anterior`, `vigente`, `valor_pedido`, `numero_recibo` |
+| `perdcomp_dcomps` | Compensações | `numero` (UNIQUE), `situacao_documento` (ativa/retificadora/retificada/cancelada), `numero_referencia`, `credito_informado_entrega`, `credito_utilizado`, `selic_acumulada`, `credito_atualizado`, `total_debitos` |
+| `perdcomp_dcomp_debitos` | Débitos de uma DCOMP | `codigo_receita`, `periodo_apuracao`, `vencimento`, `principal`/`multa`/`juros`/`total` |
+| `perdcomp_eventos` | Histórico na Receita | `entidade` (PER/DCOMP), `documento`, `data` (ciência), `tipo` (CHECK por entidade), `processo`, `valor` |
+| `selic_mensal` | Taxa Selic mensal (global) | `competencia` (PK), `taxa`; leitura para todos, escrita só admin |
 | `processos_administrativos` | Contencioso administrativo | `esfera`, `orgao_atual` (texto livre), `numero_processo`, `numero_auto_infracao`, `natureza`, `tipo`, `instancia`, valores autuado/discussão/cancelado/mantido, `prazo_impugnacao`, `proximo_prazo` |
 | `processos_judiciais` | Contencioso judicial | `numero_cnj`, `tipo_acao`, `polo`, `data_transito_julgado`, **`prazo_compensacao`** (gerada), `habilitacao_previa_rfb` |
 | `andamentos` | Linha do tempo de qualquer entidade acima | `entidade_tipo`/`entidade_id`, `tipo`, `prazo_fatal`, `cumprido` |
@@ -1087,18 +1103,17 @@ Migrations em `sql/2026-08-28_0{1,2,3}_*.sql`.
 | Coluna | Fórmula | Significado |
 | --- | --- | --- |
 | `creditos.data_limite_prescricao` | `data_base_prescricao + 5 anos` | Prescrição do crédito |
-| `perdcomps.data_limite_homologacao` | `data_transmissao + 5 anos` | Homologação tácita (Lei 9.430/96, art. 74, §5º) |
 | `processos_judiciais.prazo_compensacao` | `data_transito_julgado + 5 anos` | Prazo para compensar o indébito |
-| `perdcomp_debitos.valor_total` | `principal + multa + juros` | Total do débito |
 
 ### Views
 
 | View | Conteúdo |
 | --- | --- |
 | `v_credito_saldos` | Por crédito: `total_creditado`, `total_utilizado`, **`saldo_disponivel`** (C − D) e `dias_para_prescricao` |
-| `v_prazos_criticos` | Todos os prazos em aberto num só lugar: prescrição, exigência e-CredAc, homologação tácita, manifestação de inconformidade, defesas/recursos, compensação pós-trânsito e prazos de andamento. `dias_restantes < 0` = vencido |
+| `v_prazos_criticos` | Todos os prazos em aberto num só lugar: prescrição, exigência e-CredAc, homologação tácita das DCOMPs (transmissão + 5 anos, só as que ainda correm), manifestação de inconformidade (ciência da decisão desfavorável + 30 dias, até haver manifestação), defesas/recursos, compensação pós-trânsito e prazos de andamento. `dias_restantes < 0` = vencido |
+| `v_perdcomp_saldos` | Por crédito PER/DCOMP: `valor_credito`, `utilizado` (DCOMPs ativas e retificadoras), `saldo`, `dcomps_que_consomem`, `total_composicao` |
 
-Ambas usam `security_invoker = on` (**exige PostgreSQL 15+**), para que a RLS das
+As três usam `security_invoker = on` (**exige PostgreSQL 15+**), para que a RLS das
 tabelas-base valha para quem consulta — sem isso a view veria tudo.
 
 ### Funções de acesso
@@ -1124,6 +1139,18 @@ de tarefa expõe o seletor **Crédito vinculado**, filtrado pelo projeto da tare
 | `src/lib/fiscalExport.js` | Geração das planilhas |
 | `src/components/ui/currency-input.jsx` | Campo de moeda pt-BR que devolve `Number` |
 | `src/components/ui/kpi-card.jsx` | Card de indicador das telas fiscais |
+| `src/lib/perdcompRegras.js` | Regras puras do PER/DCOMP: saldo, extrato, Selic por tipo, fase, alertas, prazos, validações |
+| `src/lib/perdcompApi.js` · `perdcompImportar.js` · `perdcompIA.js` | Leitura/gravação do controle · importação HTML/JSON · leitura de PDF por IA → formulário |
+| `api/ler-perdcomp.js` | Função serverless que envia o PDF ao Claude e devolve JSON validado por esquema; não grava nada |
+
+### Regras do controle PER/DCOMP
+
+- **Saldo** = valor do crédito − Σ crédito utilizado das DCOMPs **ativas e retificadoras**. Retificadas e canceladas ficam no histórico e não consomem.
+- **Fase na Receita** = último evento registrado do documento; nunca é digitada.
+- **Selic** = soma das taxas mensais do mês inicial até o mês anterior ao da entrega + 1%. O mês inicial depende do tipo (manuais do PER/DCOMP Web): retenção, 2º mês após a competência; pagamento indevido, mês seguinte ao pagamento; saldo negativo, mês seguinte ao fim do período; ressarcimento PIS/Cofins, mês seguinte ao 361º dia do pedido. Sem marco definido no manual, o sistema pede o termo inicial e não estima.
+- **Alertas graves**: saldo negativo (compensações declaradas acima do crédito). **Para conferir**: crédito declarado na DCOMP diferente do apurado, mesmo débito em duas DCOMPs ativas, mais de uma versão vigente do PER, pagamento acima do saldo, composição que não fecha.
+- **Homologação tácita consumada**: DCOMP sem decisão há mais de 5 anos aparece na tela como "homologada tacitamente — registre o evento", não como prazo vencido.
+- **Prova de equivalência**: `node scripts/verificar-perdcomp-regras.mjs <controle-perdcomp.html>` compara as regras com o protótipo da equipe (290 verificações, 0 divergências).
 
 ---
 
@@ -1135,8 +1162,9 @@ Quebrar qualquer uma destas gera dado errado ou vazamento:
    fica invisível ou vaza dados entre clientes.
 2. **Saldo de crédito nunca é gravado em coluna.** É sempre derivado de
    `credito_movimentos` pela view `v_credito_saldos`.
-3. **Contribuinte e projeto de habilitação, PER/DCOMP e contencioso vêm do
-   crédito**, nunca são digitados em separado — evita divergência.
+3. **Contribuinte e projeto de habilitação e contencioso vêm do crédito**,
+   nunca são digitados em separado — evita divergência. No PER/DCOMP, a DCOMP
+   herda contribuinte e projeto do crédito PER/DCOMP a que pertence.
 4. **Colunas geradas não vão no payload de escrita** (lista na seção 15).
    `fiscalApi.js` já as remove; ao criar uma função nova, remova também.
 5. **`fiscalDomain.js` espelha os CHECK do banco.** Mudou a lista lá, mude o
@@ -1144,6 +1172,7 @@ Quebrar qualquer uma destas gera dado errado ou vazamento:
    em vez de validação amigável.
 6. **Dinheiro é `numeric(18,2)` no banco e `Number` no JS.** Nunca float no
    banco, nunca string formatada no payload.
+7. **Saldo e fase do PER/DCOMP são derivados** (seção 15), nunca gravados.
 
 ### Validações que o banco impõe (e a tela antecipa)
 
@@ -1165,7 +1194,7 @@ Cada tela fiscal tem botão **Exportar**, que gera um `.xlsx` do que está
 | --- | --- | --- |
 | Créditos | `creditos_dd-mm-aaaa.xlsx` | Créditos |
 | e-CredAc | `habilitacoes_ecredac_…` | e-CredAc |
-| PER/DCOMP | `perdcomp_…` | PER-DCOMP + Débitos |
+| PER/DCOMP | `perdcomp_<cnpj>_…` | Créditos, Conta-corrente, PER, Débitos DCOMP, Composição, Alertas (do tipo de crédito selecionado) |
 | Contencioso (Administrativo) | `contencioso_administrativo_…` | Administrativo |
 | Contencioso (Judicial) | `contencioso_judicial_…` | Judicial |
 | Prazos | `prazos_…` | Prazos |

@@ -19,8 +19,24 @@
 export const round2 = (v) => Math.round((v + Number.EPSILON) * 100) / 100;
 export const round4 = (v) => Math.round((v + Number.EPSILON) * 10000) / 10000;
 
-/** '2019-03-01' | '2019-03-01T10:00:00Z' | '2019-03' → '2019-03' */
-export const mes = (valor) => (valor ? String(valor).slice(0, 7) : null);
+const MES_SP = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' });
+
+/**
+ * '2019-03' | '2019-03-01' | '2019-03-01T10:00:00' | '2019-03-31T23:30:00-03:00' → 'YYYY-MM'.
+ *
+ * Timestamps com fuso (como o banco devolve timestamptz) são lidos no fuso
+ * de Brasília: uma DCOMP transmitida às 22h de 30/09 é de setembro, embora
+ * em UTC já seja 01/10. Errar o mês muda o índice Selic.
+ */
+export const mes = (valor) => {
+  if (!valor) return null;
+  const s = String(valor);
+  if (/T.*(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) return MES_SP.format(d).slice(0, 7);
+  }
+  return s.slice(0, 7);
+};
 
 const num = (v) => (v == null || v === '' ? null : Number(v));
 
