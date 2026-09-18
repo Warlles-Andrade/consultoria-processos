@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { KpiCard } from '@/components/ui/kpi-card';
+import PrimeirosPassos from '@/components/PrimeirosPassos';
 import { useToast } from '@/components/ui/use-toast';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
@@ -301,15 +302,7 @@ const FiscalDashboard = ({ onNavigate }) => {
       </div>
 
       {semDados ? (
-        <Card className="glass-card border-white/60 rounded-2xl">
-          <CardContent className="text-center py-20 text-slate-500">
-            <ChartIcon className="h-10 w-10 mx-auto mb-3 text-slate-300" />
-            <p className="font-medium">Nenhum crédito cadastrado ainda</p>
-            <p className="text-sm">
-              O painel se preenche conforme você lança créditos, habilitações e PER/DCOMPs.
-            </p>
-          </CardContent>
-        </Card>
+        <PrimeirosPassos onNavigate={onNavigate} />
       ) : (
         <>
           {/* Números-chave */}

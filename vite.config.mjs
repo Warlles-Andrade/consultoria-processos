@@ -188,7 +188,8 @@ export default defineConfig(async ({ command }) => {
 	if (isDev) {
 		const inlineEditPlugin = (await import('./plugins/visual-editor/vite-plugin-react-inline-editor.js')).default;
 		const editModeDevPlugin = (await import('./plugins/visual-editor/vite-plugin-edit-mode.js')).default;
-		devPlugins = [inlineEditPlugin(), editModeDevPlugin()];
+		const apiLocalPlugin = (await import('./plugins/api-local.js')).default;
+		devPlugins = [inlineEditPlugin(), editModeDevPlugin(), apiLocalPlugin()];
 	}
 
 	return {

@@ -24,7 +24,13 @@ export default async function handler(req, res) {
   }
 
   // Verificar se quem está chamando é um usuário ADM autenticado
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  // O token do usuário vai no cabeçalho para que a consulta ao perfil rode
+  // como ele (authenticated). Sem isso a consulta roda como anon, a RLS de
+  // user_profiles devolve vazio e até um admin recebe 403.
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
   if (authErr || !user) {
     return res.status(401).json({ error: 'Token inválido ou expirado.' });

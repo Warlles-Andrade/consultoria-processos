@@ -54,7 +54,9 @@ const ContribuintesManagement = ({ usuario, userProfile, onRefresh }) => {
     try {
       const [lista, { data: clientesData, error }] = await Promise.all([
         listarContribuintes(),
-        supabase.from('clientes').select('id, nome, cor').order('nome'),
+        // 'adm' é o grupo de administradores, não um cliente de verdade: não pode
+        // ter projetos pela interface, então um contribuinte nele vira beco sem saída.
+        supabase.from('clientes').select('id, nome, cor').neq('nome', 'adm').order('nome'),
       ]);
       if (error) throw error;
       setContribuintes(lista || []);
@@ -339,6 +341,11 @@ const ContribuintesManagement = ({ usuario, userProfile, onRefresh }) => {
                   {clientes.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {clientes.length === 0 && (
+                <p className="text-xs text-amber-600">
+                  Nenhum cliente cadastrado. Cadastre primeiro em Configurações → Clientes.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1">
