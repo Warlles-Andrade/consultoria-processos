@@ -2,9 +2,9 @@
 
 ## Estado atual
 
-**As migrations 1 a 9 já foram aplicadas** no projeto Supabase
+**As migrations 1 a 9 e 11 já foram aplicadas** no projeto Supabase
 `processos_bd` (`xiafwlpnsoyklutxsvdy`, região sa-east-1, PostgreSQL 17.6):
-1–7 em 31/08/2026, 8–9 em 18/09/2026. A **10 é opcional e ainda não foi
+1–7 em 31/08/2026, 8–9 em 18/09/2026, 11 em 19/09/2026. A **10 é opcional e ainda não foi
 aplicada** (ver abaixo).
 
 Resultado verificado no banco em 18/09/2026: **28 tabelas**, 3 views,
@@ -27,6 +27,7 @@ projeto Supabase é rodar esta lista na ordem.
 | 7 | `2026-08-31_03_bootstrap_primeiro_admin.sql` | O primeiro usuário vira `adm` enquanto não existir nenhum administrador; depois a regra se desliga |
 | 8 | `2026-09-18_01_perdcomp_conta_corrente.sql` | Controle PER/DCOMP por crédito: `perdcomp_creditos`, `perdcomp_composicao`, `perdcomp_per_versoes`, `perdcomp_dcomps`, `perdcomp_dcomp_debitos`, `perdcomp_eventos`, `selic_mensal` e a view `v_perdcomp_saldos` |
 | 9 | `2026-09-18_02_perdcomp_prazos_modelo_novo.sql` | Recria `v_prazos_criticos` com os prazos do controle novo (homologação tácita e manifestação de inconformidade, derivados das DCOMPs e dos eventos) |
+| 11 | `2026-09-19_01_ecredac_conta_corrente.sql` | e-CredAc: `ecredac_contas`, `ecredac_movimentos` (extrato), `ecredac_faturamentos` (boletos de honorários), `ecredac_arquivos` (arquivos do mês), view `v_ecredac_saldos` e campos do pedido em `habilitacoes` |
 | 10 | `2026-09-18_03_perdcomp_remove_modelo_antigo.sql` | **Opcional.** Apaga `perdcomps` e `perdcomp_debitos` (modelo antigo, sem uso). Só executa se ambas estiverem vazias |
 
 > **Migration 10:** as tabelas antigas estavam vazias em 18/09/2026 e a

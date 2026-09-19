@@ -18,6 +18,7 @@ import RecurringTasksView from '@/components/RecurringTasksView';
 import ContribuintesManagement from '@/components/ContribuintesManagement';
 import CreditosView from '@/components/CreditosView';
 import HabilitacoesView from '@/components/HabilitacoesView';
+import EcredacContaView from '@/components/EcredacContaView';
 import PerdcompControleView from '@/components/PerdcompControleView';
 import ContenciosoView from '@/components/ContenciosoView';
 import PrazosView from '@/components/PrazosView';
@@ -1250,6 +1251,7 @@ function App() {
               {activeTab === 'painel-fiscal' && 'Painel Fiscal'}
               {activeTab === 'creditos' && 'Créditos'}
               {activeTab === 'habilitacoes' && 'Habilitação de Créditos'}
+              {activeTab === 'ecredac-conta' && 'e-CredAc — Conta corrente'}
               {activeTab === 'perdcomps' && 'PER/DCOMP'}
               {activeTab === 'contencioso' && 'Contencioso'}
               {activeTab === 'prazos' && 'Prazos'}
@@ -1468,6 +1470,22 @@ function App() {
                     projetos={isAdminUser ? projetos : projetos.filter(p => userProjetoIds.includes(p.id))}
                     responsaveis={responsaveisComAdmin}
                     onRefresh={() => fetchData(false, false)}
+                  />
+                </motion.div>
+              )}
+
+              {activeTab === 'ecredac-conta' && (
+                <motion.div
+                  key="ecredac-conta"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <EcredacContaView
+                    usuario={usuario}
+                    userProfile={userProfile}
+                    projetos={isAdminUser ? projetos : projetos.filter(p => userProjetoIds.includes(p.id))}
                   />
                 </motion.div>
               )}

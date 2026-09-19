@@ -25,6 +25,7 @@ import {
   Gavel,
   AlarmClock,
   PieChart,
+  Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SettingsMenu from '@/components/SettingsMenu';
@@ -59,7 +60,8 @@ const Sidebar = ({
   const fiscalItems = [
     { id: 'painel-fiscal', label: 'Painel Fiscal', icon: PieChart, gradient: 'from-indigo-500 to-sky-600' },
     { id: 'creditos', label: 'Créditos', icon: Landmark, gradient: 'from-indigo-500 to-violet-600' },
-    { id: 'habilitacoes', label: 'e-CredAc', icon: FileCheck2, gradient: 'from-teal-500 to-emerald-600' },
+    { id: 'ecredac-conta', label: 'e-CredAc — Conta corrente', icon: Wallet, gradient: 'from-teal-500 to-emerald-600' },
+    { id: 'habilitacoes', label: 'e-CredAc — Pedidos', icon: FileCheck2, gradient: 'from-teal-500 to-emerald-600' },
     { id: 'perdcomps', label: 'PER/DCOMP', icon: Receipt, gradient: 'from-blue-500 to-cyan-600' },
     { id: 'contencioso', label: 'Contencioso', icon: Gavel, gradient: 'from-amber-500 to-orange-600' },
     { id: 'prazos', label: 'Prazos', icon: AlarmClock, gradient: 'from-rose-500 to-red-600' },

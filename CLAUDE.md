@@ -35,6 +35,12 @@ contribuintes ── perdcomp_creditos  (id_credito_rfb = nº do PER original)
                     ├── perdcomp_per_versoes  (original + retificadores; 1 vigente)
                     └── perdcomp_dcomps ── perdcomp_dcomp_debitos
 perdcomp_eventos (fase na RFB) · selic_mensal (global)
+
+contribuintes ── ecredac_contas (1 por IE)
+                    ├── ecredac_movimentos   (extrato: C soma, D subtrai, * informativo)
+                    ├── ecredac_faturamentos (boletos de honorários)
+                    └── ecredac_arquivos     (arquivo digital do mês)
+habilitacoes = pedidos do e-CredAc (casados com as apropriações pelo nº do pedido)
 ```
 
 As tabelas `perdcomps`/`perdcomp_debitos` são do modelo antigo, sem uso;
@@ -77,6 +83,7 @@ a migration opcional `2026-09-18_03` as remove (só se vazias).
   e a tela abre `PerdcompDocumentoForm` para revisão humana. Mantenha assim.
 - **Dados de cliente fora do git** — o controle real (HTML) e PDFs do e-CAC
   não entram no repositório. Exemplos em código usam números fictícios.
+- **e-CredAc: toda conta vem de `src/lib/ecredacRegras.js`.** Saldo = saldo_inicial + ΣC − ΣD ("*" não mexe no saldo). Honorários: devidos = % × (apropriações − reincorporações deferidas); faturável = % × reservas deferidas (consumo do mês); a faturar = faturável − boletos. A operação de cada lançamento é classificada pelo histórico (`classificar`) — histórico novo cai em `OUTRO` e **não entra nos honorários**: inclua a regra em vez de forçar.
 - **Valores monetários**: `numeric(18,2)` no banco, `Number` no JS. Nunca float
   no banco, nunca string formatada no payload — `CurrencyInput` já devolve
   `Number`.
@@ -98,6 +105,8 @@ a migration opcional `2026-09-18_03` as remove (só se vazias).
 | `src/lib/perdcompRegras.js` · `perdcompApi.js` · `perdcompImportar.js` · `perdcompIA.js` | Regras puras · dados · importação · IA→formulário |
 | `api/ler-perdcomp.js` | Leitura de PDF com Claude (`claude-opus-5`, JSON por esquema); exige `ANTHROPIC_API_KEY` |
 | `scripts/verificar-perdcomp-regras.mjs` | Prova de equivalência das regras contra o protótipo |
+| `src/components/EcredacContaView.jsx` | e-CredAc: consumo e faturamento, conta corrente, pedidos × apropriações, arquivos do mês |
+| `src/lib/ecredacRegras.js` · `ecredacImportar.js` · `ecredacApi.js` | Regras puras · leitura das planilhas (colunas pelo cabeçalho) · dados |
 | `DOCUMENTACAO_COMPLETA_SISTEMA.md` | Documentação das duas camadas (seções 13–18 = fiscal) |
 
 ## Estado atual
